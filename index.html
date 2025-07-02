@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>דשבורד סטטוס לקוחות, תחילת יולי - ניתוח מגמות</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .filters {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        
+        .filter-group {
+            display: inline-block;
+            margin-left: 20px;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+            margin-left: 10px;
+            color: #555;
+        }
+        
+        .filter-group select {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-group select:hover {
+            border-color: #3498db;
+        }
+        
+        .filter-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+        }
+        
+        .metric-card h3 {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .metric-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .metric-change {
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        
+        .positive {
+            color: #27ae60;
+        }
+        
+        .negative {
+            color: #e74c3c;
+        }
+        
+        .charts-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        
+        .table-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            overflow-x: auto;
+        }
+        
+        .table-section h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 3000px;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: right;
+            border-bottom: 1px solid #e0e0e0;
+            white-space: nowrap;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        /* רווח נוסף לעמודות עם תאריכים */
+        th:nth-child(4), td:nth-child(4),  /* טווח בדיקה */
+        th:nth-child(12), td:nth-child(12), /* היום עם הכי הרבה חוסרים */
+        th:nth-child(13), td:nth-child(13) { /* היום עם הכי מעט חוסרים */
+            min-width: 200px;
+            padding: 12px 20px;
+        }
+        
+        /* רווח נוסף לעמודות קטגוריות */
+        th:nth-child(10), td:nth-child(10),   /* הקטגוריה עם הכי הרבה חוסרים */
+        th:nth-child(11), td:nth-child(11) { /* הקטגוריה עם הכי מעט חוסרים */
+            min-width: 250px;
+            padding: 12px 20px;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+        
+        .checkbox-group {
+            display: inline-block;
+            margin-right: 20px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-left: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>דשבורד סטטוס לקוחות, תחילת יולי - ניתוח מגמות</h1>
+            <p>מעקב אחר ביצועי סניפים לאורך זמן</p>
+        </div>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <label>רשת:</label>
+                <select id="networkFilter">
+                    <option value="all">כל הרשתות</option>
+                    <option value="AMPM">AMPM</option>
+                    <option value="סופר ספיר">סופר ספיר</option>
+                    <option value="קרפור">קרפור</option>
+                    <option value="יוחננוף">יוחננוף</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>סניף:</label>
+                <select id="branchFilter">
+                    <option value="all">כל הסניפים</option>
+                </select>
+            </div>
+            
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="combineData" checked>
+                    תצוגה משולבת בגרפים
+                </label>
+            </div>
+            
+            <div id="combinedSelectionContainer" style="display: none; margin-top: 15px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 5px; background-color: #f9f9f9;">
+                <h4 style="margin-bottom: 10px; color: #555;">בחר רשתות/סניפים להשוואה:</h4>
+                <div id="networkSelectionContainer" style="margin-bottom: 10px;">
+                    <label style="font-weight: 600; margin-bottom: 5px; display: block;">רשתות:</label>
+                    <div id="networkCheckboxes" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                </div>
+                <div id="branchSelectionContainer">
+                    <label style="font-weight: 600; margin-bottom: 5px; display: block;">סניפים:</label>
+                    <div id="branchCheckboxes" style="display: flex; flex-wrap: wrap; gap: 10px; max-height: 150px; overflow-y: auto;"></div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button id="selectAllNetworks" style="padding: 5px 10px; margin-left: 5px; background: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer;">בחר הכל - רשתות</button>
+                    <button id="clearAllNetworks" style="padding: 5px 10px; margin-left: 5px; background: #e74c3c; color: white; border: none; border-radius: 3px; cursor: pointer;">נקה הכל - רשתות</button>
+                    <button id="selectAllBranches" style="padding: 5px 10px; margin-left: 5px; background: #27ae60; color: white; border: none; border-radius: 3px; cursor: pointer;">בחר הכל - סניפים</button>
+                    <button id="clearAllBranches" style="padding: 5px 10px; background: #f39c12; color: white; border: none; border-radius: 3px; cursor: pointer;">נקה הכל - סניפים</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="metrics-grid" id="metricsGrid">
+            <div class="loading">טוען נתונים...</div>
+        </div>
+        
+        <div class="charts-section">
+            <h2>גרפי מגמות</h2>
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <canvas id="casesChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="hoursChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="avgTimeChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="percentChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-section">
+            <h2>טבלת נתונים מפורטת</h2>
+            <div id="dataTable">
+                <div class="loading">טוען נתונים...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // נתוני הדשבורד המעודכנים לתחילת יולי - להכניס כאן את הנתונים החדשים
+        const data = [
+        {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 0", dateRange: "2025-04-06 - 2025-04-11", period: "T0", cases: 87, hours: 125.72, avgTime: 4.84, medianTime: 4, topCategory: "מעדנים,גבינות לבנות (39.0)", bottomCategory: "שימורים (7.0)", topDay: "2025-04-07 (33.0)", bottomDay: "2025-04-11 (3.0)", percentAboveHour: 83.87, percentAbove2Hours: 67.74, percentAbove5Hours: 38.71, avgHoursPerCamera: 25.14, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 1", dateRange: "2025-04-13 - 2025-04-18", period: "T1", cases: 15, hours: 36.92, avgTime: 4.62, medianTime: 4.5, topCategory: "מעדנים,גבינות לבנות (12.0)", bottomCategory: "בירה, משקאות חריפים (1.0)", topDay: "2025-04-15 (6.0)", bottomDay: "2025-04-14 (2.0)", percentAboveHour: 88.89, percentAbove2Hours: 77.78, percentAbove5Hours: 33.33, avgHoursPerCamera: 7.38, casesChangeFromT0: "-72 (-82.76%)", hoursChangeFromT0: "-88.8 (-70.63%)", casesChangeFromPrev: "-72 (-82.76%)", hoursChangeFromPrev: "-88.8 (-70.63%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 2", dateRange: "2025-04-20 - 2025-04-25", period: "T2", cases: 110, hours: 168.56, avgTime: 6.74, medianTime: 8.01, topCategory: "דגים/בשר משומר (36.0)", bottomCategory: "מעדנים,גבינות לבנות (10.0)", topDay: "2025-04-23 (32.0)", bottomDay: "2025-04-21 (9.0)", percentAboveHour: 92.31, percentAbove2Hours: 88.46, percentAbove5Hours: 69.23, avgHoursPerCamera: 33.71, casesChangeFromT0: "23 (26.44%)", hoursChangeFromT0: "42.84 (34.08%)", casesChangeFromPrev: "95 (633.33%)", hoursChangeFromPrev: "131.64 (356.55%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 3", dateRange: "2025-04-27 - 2025-05-02", period: "T3", cases: 72, hours: 104.09, avgTime: 4.73, medianTime: 3.97, topCategory: "מעדנים,גבינות לבנות (24)", bottomCategory: "שימורים (7)", topDay: "2025-04-27 (19)", bottomDay: "2025-04-29 (6)", percentAboveHour: 100.00, percentAbove2Hours: 86.36, percentAbove5Hours: 45.45, avgHoursPerCamera: 20.82, casesChangeFromT0: "-15 (-17.24%)", hoursChangeFromT0: "-21.63 (-17.2%)", casesChangeFromPrev: "-38 (-34.55%)", hoursChangeFromPrev: "-64.47 (-38.25%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 4", dateRange: "2025-05-04 - 2025-05-09", period: "T4", cases: 63, hours: 91.26, avgTime: 3.38, medianTime: 2.99, topCategory: "מעדנים,גבינות לבנות (28.0)", bottomCategory: "שימורים (5.0)", topDay: "2025-05-09 (19.0)", bottomDay: "2025-05-05 (3.0)", percentAboveHour: 83.87, percentAbove2Hours: 54.84, percentAbove5Hours: 12.90, avgHoursPerCamera: 18.25, casesChangeFromT0: "-24 (-27.59%)", hoursChangeFromT0: "-34.46 (-27.41%)", casesChangeFromPrev: "-9 (-12.5%)", hoursChangeFromPrev: "-12.83 (-12.33%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 5", dateRange: "2025-05-11 - 2025-05-16", period: "T5", cases: 82, hours: 111.03, avgTime: 4.63, medianTime: 3.98, topCategory: "מעדנים,גבינות לבנות (39.0)", bottomCategory: "דגים/בשר משומר (5.0)", topDay: "2025-05-11 (26.0)", bottomDay: "2025-05-16 (5.0)", percentAboveHour: 88.89, percentAbove2Hours: 66.67, percentAbove5Hours: 29.63, avgHoursPerCamera: 22.21, casesChangeFromT0: "-5 (-5.75%)", hoursChangeFromT0: "-14.69 (-11.68%)", casesChangeFromPrev: "19 (30.16%)", hoursChangeFromPrev: "19.77 (21.66%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 6", dateRange: "2025-05-18 - 2025-05-23", period: "T6", cases: 57, hours: 130, avgTime: 4.48, medianTime: 4.02, topCategory: "מעדנים,גבינות לבנות (18)", bottomCategory: "קרקרים/אובלטים (3)", topDay: "2025-05-20 (13)", bottomDay: "2025-05-18 (6)", percentAboveHour: 89.66, percentAbove2Hours: 72.41, percentAbove5Hours: 41.38, avgHoursPerCamera: 26, casesChangeFromT0: "-30 (-34.48%)", hoursChangeFromT0: "4.28 (3.4%)", casesChangeFromPrev: "-25 (-30.49%)", hoursChangeFromPrev: "18.97 (17.09%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 7", dateRange: "2025-05-25 - 2025-05-30", period: "T7", cases: 80, hours: 115.63, avgTime: 3.99, medianTime: 3.05, topCategory: "בירה, משקאות חריפים (30)", bottomCategory: "שימורים (7)", topDay: "2025-05-28 (17)", bottomDay: "2025-05-30 (9)", percentAboveHour: 89.66, percentAbove2Hours: 62.07, percentAbove5Hours: 27.59, avgHoursPerCamera: 23.13, casesChangeFromT0: "-7 (-8.05%)", hoursChangeFromT0: "-10.09 (-8.03%)", casesChangeFromPrev: "23 (40.35%)", hoursChangeFromPrev: "-14.37 (-11.05%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 8", dateRange: "2025-06-01 - 2025-06-06", period: "T8", cases: 96, hours: 135.35, avgTime: 6.45, medianTime: 7.91, topCategory: "בירה, משקאות חריפים (26)", bottomCategory: "שימורים (8)", topDay: "2025-06-05 (29)", bottomDay: "2025-06-03 (9)", percentAboveHour: 100.00, percentAbove2Hours: 85.71, percentAbove5Hours: 76.19, avgHoursPerCamera: 27.07, casesChangeFromT0: "9 (10.34%)", hoursChangeFromT0: "9.63 (7.66%)", casesChangeFromPrev: "16 (20.0%)", hoursChangeFromPrev: "19.72 (17.05%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 9", dateRange: "2025-06-08 - 2025-06-13", period: "T9", cases: 100, hours: 123.19, avgTime: 4.93, medianTime: 4.99, topCategory: "מעדנים,גבינות לבנות (42)", bottomCategory: "בירה, משקאות חריפים (5)", topDay: "2025-06-08 (32)", bottomDay: "2025-06-10 (3)", percentAboveHour: 92.00, percentAbove2Hours: 68.00, percentAbove5Hours: 48.00, avgHoursPerCamera: 24.64, casesChangeFromT0: "13 (14.94%)", hoursChangeFromT0: "-2.53 (-2.01%)", casesChangeFromPrev: "4 (4.17%)", hoursChangeFromPrev: "-12.16 (-8.98%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 10", dateRange: "2025-06-15 - 2025-06-20", period: "T10", cases: 146, hours: 186.23, avgTime: 6.01, medianTime: 6.38, topCategory: "מעדנים,גבינות לבנות (71)", bottomCategory: "שימורים (11)", topDay: "2025-06-15 (35)", bottomDay: "2025-06-20 (11)", percentAboveHour: 96.77, percentAbove2Hours: 80.65, percentAbove5Hours: 67.74, avgHoursPerCamera: 37.25, casesChangeFromT0: "59 (67.82%)", hoursChangeFromT0: "60.51 (48.13%)", casesChangeFromPrev: "46 (46.0%)", hoursChangeFromPrev: "63.04 (51.17%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 11", dateRange: "2025-06-22 - 2025-06-27", period: "T11", cases: 85, hours: 106.11, avgTime: 4.24, medianTime: 3, topCategory: "מעדנים,גבינות לבנות (40)", bottomCategory: "קרקרים/אובלטים (7)", topDay: "2025-06-23 (20)", bottomDay: "2025-06-25 (5)", percentAboveHour: 96.00, percentAbove2Hours: 72.00, percentAbove5Hours: 40.00, avgHoursPerCamera: 21.22, casesChangeFromT0: "-2 (-2.3%)", hoursChangeFromT0: "-19.61 (-15.6%)", casesChangeFromPrev: "-61 (-41.78%)", hoursChangeFromPrev: "-80.12 (-43.02%)"},
+            {store: "יוחננוף, תל אביב - יד אליהו", network: "יוחננוף", week: "שבוע 12", dateRange: "2025-06-29 - 2025-07-04", period: "T12", cases: 46, hours: 80.9, avgTime: 7.35, medianTime: 8, topCategory: "מעדנים,גבינות לבנות (17.0)", bottomCategory: "בירה, משקאות חריפים (5.0)", topDay: "2025-06-29 (19.0)", bottomDay: "2025-07-02 (0.0)", percentAboveHour: 73.33, percentAbove2Hours: 73.33, percentAbove5Hours: 60.00, avgHoursPerCamera: 16.18, casesChangeFromT0: "-41 (-47.13%)", hoursChangeFromT0: "-44.82 (-35.65%)", casesChangeFromPrev: "-39 (-45.88%)", hoursChangeFromPrev: "-25.21 (-23.76%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 0", dateRange: "2025-04-06 - 2025-04-11", period: "T0", cases: 358, hours: 275.15, avgTime: 6.4, medianTime: 7.92, topCategory: "חטיפים מלוחים (89.0)", bottomCategory: "תכשירי כביסה (13.0)", topDay: "2025-04-10 (75.0)", bottomDay: "2025-04-07 (46.0)", percentAboveHour: 91.49, percentAbove2Hours: 78.72, percentAbove5Hours: 65.96, avgHoursPerCamera: 25.01, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 1", dateRange: "2025-04-13 - 2025-04-18", period: "T1", cases: 190, hours: 123.3, avgTime: 7.25, medianTime: 8.98, topCategory: "חטיפים מלוחים (118)", bottomCategory: "אורז קטניות (4)", topDay: "2025-04-17 (43)", bottomDay: "2025-04-15 (31)", percentAboveHour: 100.00, percentAbove2Hours: 94.12, percentAbove5Hours: 88.24, avgHoursPerCamera: 11.21, casesChangeFromT0: "-168 (-46.93%)", hoursChangeFromT0: "-151.85 (-55.19%)", casesChangeFromPrev: "-168 (-46.93%)", hoursChangeFromPrev: "-151.85 (-55.19%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 2", dateRange: "2025-04-20 - 2025-04-25", period: "T2", cases: 484, hours: 317.71, avgTime: 5.99, medianTime: 6, topCategory: "שוקולד טבלאות, חטיפים בודדים (129.0)", bottomCategory: "דגנים וחטיפי דגנים (5.0)", topDay: "2025-04-22 (97.0)", bottomDay: "2025-04-24 (67.0)", percentAboveHour: 92.59, percentAbove2Hours: 81.48, percentAbove5Hours: 62.96, avgHoursPerCamera: 28.88, casesChangeFromT0: "126 (35.2%)", hoursChangeFromT0: "42.56 (15.47%)", casesChangeFromPrev: "294 (154.74%)", hoursChangeFromPrev: "194.41 (157.67%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 3", dateRange: "2025-04-27 - 2025-05-02", period: "T3", cases: 416, hours: 262.95, avgTime: 6.12, medianTime: 6.12, topCategory: "מרקים/תבשילים (136.0)", bottomCategory: "דגנים וחטיפי דגנים (2.0)", topDay: "2025-04-27 (97.0)", bottomDay: "2025-04-29 (73.0)", percentAboveHour: 90.91, percentAbove2Hours: 88.64, percentAbove5Hours: 63.64, avgHoursPerCamera: 23.9, casesChangeFromT0: "58 (16.2%)", hoursChangeFromT0: "-12.2 (-4.43%)", casesChangeFromPrev: "-68 (-14.05%)", hoursChangeFromPrev: "-54.76 (-17.24%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 4", dateRange: "2025-05-04 - 2025-05-09", period: "T4", cases: 491, hours: 348.74, avgTime: 5.81, medianTime: 6, topCategory: "שוקולד טבלאות, חטיפים בודדים (151.0)", bottomCategory: "אורז קטניות (2.0)", topDay: "2025-05-05 (97.0)", bottomDay: "2025-05-06 (66.0)", percentAboveHour: 92.06, percentAbove2Hours: 77.78, percentAbove5Hours: 57.14, avgHoursPerCamera: 31.7, casesChangeFromT0: "133 (37.15%)", hoursChangeFromT0: "73.59 (26.75%)", casesChangeFromPrev: "75 (18.03%)", hoursChangeFromPrev: "85.79 (32.63%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 5", dateRange: "2025-05-11 - 2025-05-16", period: "T5", cases: 612, hours: 367.91, avgTime: 6.24, medianTime: 7.1, topCategory: "שוקולד טבלאות, חטיפים בודדים (172.0)", bottomCategory: "דגנים וחטיפי דגנים (7.0)", topDay: "2025-05-15 (132.0)", bottomDay: "2025-05-13 (73.0)", percentAboveHour: 91.80, percentAbove2Hours: 81.97, percentAbove5Hours: 62.30, avgHoursPerCamera: 33.45, casesChangeFromT0: "254 (70.95%)", hoursChangeFromT0: "92.76 (33.71%)", casesChangeFromPrev: "121 (24.64%)", hoursChangeFromPrev: "19.17 (5.5%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 6", dateRange: "2025-05-18 - 2025-05-23", period: "T6", cases: 308, hours: 288.29, avgTime: 5.15, medianTime: 4.97, topCategory: "שוקולד טבלאות, חטיפים בודדים (88)", bottomCategory: "דגנים וחטיפי דגנים (6)", topDay: "2025-05-18 (90)", bottomDay: "2025-05-20 (19)", percentAboveHour: 96.43, percentAbove2Hours: 85.71, percentAbove5Hours: 44.64, avgHoursPerCamera: 26.21, casesChangeFromT0: "-50 (-13.97%)", hoursChangeFromT0: "13.14 (4.78%)", casesChangeFromPrev: "-304 (-49.67%)", hoursChangeFromPrev: "-79.62 (-21.64%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 7", dateRange: "2025-05-25 - 2025-05-30", period: "T7", cases: 312, hours: 324.47, avgTime: 6.01, medianTime: 5.98, topCategory: "שוקולד טבלאות, חטיפים בודדים (102.0)", bottomCategory: "אורז קטניות (3.0)", topDay: "2025-05-30 (75.0)", bottomDay: "2025-05-27 (31.0)", percentAboveHour: 91.07, percentAbove2Hours: 85.71, percentAbove5Hours: 57.14, avgHoursPerCamera: 29.5, casesChangeFromT0: "-46 (-12.85%)", hoursChangeFromT0: "49.32 (17.92%)", casesChangeFromPrev: "4 (1.3%)", hoursChangeFromPrev: "36.18 (12.55%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 8", dateRange: "2025-06-01 - 2025-06-06", period: "T8", cases: 482, hours: 296.27, avgTime: 6.17, medianTime: 6.03, topCategory: "חטיפים מלוחים (134)", bottomCategory: "אורז קטניות (12)", topDay: "2025-06-06 (115)", bottomDay: "2025-06-04 (82)", percentAboveHour: 95.83, percentAbove2Hours: 87.50, percentAbove5Hours: 60.42, avgHoursPerCamera: 26.93, casesChangeFromT0: "124 (34.64%)", hoursChangeFromT0: "21.12 (7.68%)", casesChangeFromPrev: "170 (54.49%)", hoursChangeFromPrev: "-28.2 (-8.69%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 9", dateRange: "2025-06-08 - 2025-06-13", period: "T9", cases: 448, hours: 351.85, avgTime: 5.5, medianTime: 5.16, topCategory: "חטיפים מלוחים (93)", bottomCategory: "משקאות קלים (1)", topDay: "2025-06-08 (126)", bottomDay: "2025-06-10 (26)", percentAboveHour: 95.31, percentAbove2Hours: 82.81, percentAbove5Hours: 62.50, avgHoursPerCamera: 31.99, casesChangeFromT0: "90 (25.14%)", hoursChangeFromT0: "76.7 (27.88%)", casesChangeFromPrev: "-34 (-7.05%)", hoursChangeFromPrev: "55.58 (18.76%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 10", dateRange: "2025-06-15 - 2025-06-20", period: "T10", cases: 682, hours: 412.85, avgTime: 6.16, medianTime: 6.72, topCategory: "שוקולד טבלאות, חטיפים בודדים (164)", bottomCategory: "משקאות קלים (2)", topDay: "2025-06-15 (124)", bottomDay: "2025-06-17 (97)", percentAboveHour: 98.51, percentAbove2Hours: 86.57, percentAbove5Hours: 70.15, avgHoursPerCamera: 37.53, casesChangeFromT0: "324 (90.5%)", hoursChangeFromT0: "137.7 (50.05%)", casesChangeFromPrev: "234 (52.23%)", hoursChangeFromPrev: "61.0 (17.34%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 11", dateRange: "2025-06-22 - 2025-06-27", period: "T11", cases: 433, hours: 360.04, avgTime: 6, medianTime: 7, topCategory: "מרקים/תבשילים (107.0)", bottomCategory: "אורז קטניות (13.0)", topDay: "2025-06-22 (118.0)", bottomDay: "2025-06-27 (39.0)", percentAboveHour: 93.65, percentAbove2Hours: 82.54, percentAbove5Hours: 65.08, avgHoursPerCamera: 32.73, casesChangeFromT0: "75 (20.95%)", hoursChangeFromT0: "84.89 (30.85%)", casesChangeFromPrev: "-249 (-36.51%)", hoursChangeFromPrev: "-52.81 (-12.79%)"},
+            {store: "יוחננוף, מוטי קינד - רחובות", network: "יוחננוף", week: "שבוע 12", dateRange: "2025-06-29 - 2025-07-04", period: "T12", cases: 122, hours: 122.99, avgTime: 4.24, medianTime: 3.01, topCategory: "מרקים/תבשילים (33.0)", bottomCategory: "תכשירי כביסה (2.0)", topDay: "2025-06-29 (42.0)", bottomDay: "2025-07-02 (0.0)", percentAboveHour: 82.35, percentAbove2Hours: 61.76, percentAbove5Hours: 32.35, avgHoursPerCamera: 11.18, casesChangeFromT0: "-236 (-65.92%)", hoursChangeFromT0: "-152.16 (-55.3%)", casesChangeFromPrev: "-311 (-71.82%)", hoursChangeFromPrev: "-237.05 (-65.84%)"},
+            {store: "AMPM, בת ים - קוממיות", network: "AMPM", week: "שבוע 0", dateRange: "2025-05-01 - 2025-05-06", period: "T0", cases: 63, hours: 63.26, avgTime: 6.33, medianTime: 7.01, topCategory: "תה וחליטות (44)", bottomCategory: "אורז קטניות (2)", topDay: "2025-05-04 (21)", bottomDay: "2025-05-05 (4)", percentAboveHour: 100.00, percentAbove2Hours: 90.00, percentAbove5Hours: 90.00, avgHoursPerCamera: 9.04, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "AMPM, בת ים - קוממיות", network: "AMPM", week: "שבוע 1", dateRange: "2025-05-08 - 2025-05-13", period: "T1", cases: 29, hours: 47.17, avgTime: 5.9, medianTime: 6.02, topCategory: "תה וחליטות (20)", bottomCategory: "חטיפים מלוחים (9)", topDay: "2025-05-13 (8)", bottomDay: "2025-05-08 (3)", percentAboveHour: 100.00, percentAbove2Hours: 100.00, percentAbove5Hours: 62.50, avgHoursPerCamera: 6.74, casesChangeFromT0: "-34 (-53.97%)", hoursChangeFromT0: "-16.09 (-25.43%)", casesChangeFromPrev: "-34 (-53.97%)", hoursChangeFromPrev: "-16.09 (-25.43%)"},
+            {store: "AMPM, בת ים - קוממיות", network: "AMPM", week: "שבוע 2", dateRange: "2025-05-15 - 2025-05-20", period: "T2", cases: 22, hours: 40.23, avgTime: 5.75, medianTime: 5.04, topCategory: "תה וחליטות (19.0)", bottomCategory: "אורז קטניות (0.0)", topDay: "2025-05-20 (8.0)", bottomDay: "2025-05-15 (1.0)", percentAboveHour: 70.00, percentAbove2Hours: 70.00, percentAbove5Hours: 50.00, avgHoursPerCamera: 5.75, casesChangeFromT0: "-41 (-65.08%)", hoursChangeFromT0: "-23.03 (-36.41%)", casesChangeFromPrev: "-7 (-24.14%)", hoursChangeFromPrev: "-6.94 (-14.71%)"},
+            {store: "AMPM, בת ים - קוממיות", network: "AMPM", week: "שבוע 3", dateRange: "2025-05-22 - 2025-05-27", period: "T3", cases: 14, hours: 26.31, avgTime: 5.26, medianTime: 6.16, topCategory: "תה וחליטות (11)", bottomCategory: "מרקים/תבשילים (1)", topDay: "2025-05-27 (8)", bottomDay: "2025-05-22 (3)", percentAboveHour: 100.00, percentAbove2Hours: 80.00, percentAbove5Hours: 80.00, avgHoursPerCamera: 3.76, casesChangeFromT0: "-49 (-77.78%)", hoursChangeFromT0: "-36.95 (-58.41%)", casesChangeFromPrev: "-8 (-36.36%)", hoursChangeFromPrev: "-13.92 (-34.6%)"},
+            {store: "AMPM, בת ים - קוממיות", network: "AMPM", week: "שבוע 4", dateRange: "2025-05-29 - 2025-06-03", period: "T4", cases: 22, hours: 19.48, avgTime: 3.9, medianTime: 2.95, topCategory: "תה וחליטות (19)", bottomCategory: "אורז קטניות (1)", topDay: "2025-05-29 (10)", bottomDay: "2025-05-30 (5)", percentAboveHour: 100.00, percentAbove2Hours: 80.00, percentAbove5Hours: 20.00, avgHoursPerCamera: 2.78, casesChangeFromT0: "-41 (-65.08%)", hoursChangeFromT0: "-43.78 (-69.21%)", casesChangeFromPrev: "8 (57.14%)", hoursChangeFromPrev: "-6.83 (-25.96%)"},
+            {store: "AMPM, בת ים - קוממיות", network: "AMPM", week: "שבוע 5", dateRange: "2025-06-05 - 2025-06-10", period: "T5", cases: 4, hours: 2, avgTime: 1, medianTime: 1, topCategory: "תה וחליטות (3)", bottomCategory: "חטיפים מלוחים (1)", topDay: "2025-06-10 (4)", bottomDay: "2025-06-10 (4)", percentAboveHour: 100.00, percentAbove2Hours: 0.00, percentAbove5Hours: 0.00, avgHoursPerCamera: 0.29, casesChangeFromT0: "-59 (-93.65%)", hoursChangeFromT0: "-61.26 (-96.84%)", casesChangeFromPrev: "-18 (-81.82%)", hoursChangeFromPrev: "-17.48 (-89.73%)"},
+            {store: "AMPM, בת ים - קוממיות", network: "AMPM", week: "שבוע 6", dateRange: "2025-06-12 - 2025-06-17", period: "T6", cases: 25, hours: 33.77, avgTime: 4.22, medianTime: 3.09, topCategory: "תה וחליטות (20)", bottomCategory: "מרקים/תבשילים (2)", topDay: "2025-06-17 (10)", bottomDay: "2025-06-12 (3)", percentAboveHour: 100.00, percentAbove2Hours: 75.00, percentAbove5Hours: 37.50, avgHoursPerCamera: 4.82, casesChangeFromT0: "-38 (-60.32%)", hoursChangeFromT0: "-29.49 (-46.62%)", casesChangeFromPrev: "21 (525.0%)", hoursChangeFromPrev: "31.77 (1588.5%)"},
+            {store: "AMPM, בת ים - קוממיות", network: "AMPM", week: "שבוע 7", dateRange: "2025-06-19 - 2025-06-24", period: "T7", cases: 12, hours: 11.16, avgTime: 2.23, medianTime: 1, topCategory: "תה וחליטות (11)", bottomCategory: "מרקים/תבשילים (1)", topDay: "2025-06-23 (5)", bottomDay: "2025-06-20 (1)", percentAboveHour: 100.00, percentAbove2Hours: 20.00, percentAbove5Hours: 20.00, avgHoursPerCamera: 1.59, casesChangeFromT0: "-51 (-80.95%)", hoursChangeFromT0: "-52.1 (-82.36%)", casesChangeFromPrev: "-13 (-52.0%)", hoursChangeFromPrev: "-22.61 (-66.95%)"},
+            {store: "AMPM, בת ים - קוממיות", network: "AMPM", week: "שבוע 8", dateRange: "2025-06-26 - 2025-07-01", period: "T8", cases: 10, hours: 15.73, avgTime: 5.24, medianTime: 7, topCategory: "תה וחליטות (10)", bottomCategory: "תה וחליטות (10)", topDay: "2025-06-30 (6)", bottomDay: "2025-07-01 (4)", percentAboveHour: 100.00, percentAbove2Hours: 66.67, percentAbove5Hours: 66.67, avgHoursPerCamera: 2.25, casesChangeFromT0: "-53 (-84.13%)", hoursChangeFromT0: "-47.53 (-75.13%)", casesChangeFromPrev: "-2 (-16.67%)", hoursChangeFromPrev: "4.57 (40.95%)"},
+            {store: "AMPM, בת ים - בן גוריון", network: "AMPM", week: "שבוע 0", dateRange: "2025-05-01 - 2025-05-06", period: "T0", cases: 115, hours: 106.05, avgTime: 7.07, medianTime: 7.97, topCategory: "משקאות קלים (35.0)", bottomCategory: "שוקולד טבלאות, חטיפים בודדים (6.0)", topDay: "2025-05-04 (61.0)", bottomDay: "2025-05-02 (4.0)", percentAboveHour: 93.75, percentAbove2Hours: 87.50, percentAbove5Hours: 68.75, avgHoursPerCamera: 21.21, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "AMPM, בת ים - בן גוריון", network: "AMPM", week: "שבוע 1", dateRange: "2025-05-08 - 2025-05-13", period: "T1", cases: 57, hours: 69.9, avgTime: 4.66, medianTime: 4.04, topCategory: "משקאות קלים (20)", bottomCategory: "שוקולד טבלאות, חטיפים בודדים (2)", topDay: "2025-05-12 (21)", bottomDay: "2025-05-08 (2)", percentAboveHour: 86.67, percentAbove2Hours: 80.00, percentAbove5Hours: 46.67, avgHoursPerCamera: 13.98, casesChangeFromT0: "-58 (-50.43%)", hoursChangeFromT0: "-36.15 (-34.09%)", casesChangeFromPrev: "-58 (-50.43%)", hoursChangeFromPrev: "-36.15 (-34.09%)"},
+            {store: "AMPM, בת ים - בן גוריון", network: "AMPM", week: "שבוע 2", dateRange: "2025-05-15 - 2025-05-20", period: "T2", cases: 38, hours: 57.06, avgTime: 7.13, medianTime: 8, topCategory: "משקאות קלים (22.0)", bottomCategory: "שוקולד טבלאות, חטיפים בודדים (0.0)", topDay: "2025-05-18 (21.0)", bottomDay: "2025-05-15 (3.0)", percentAboveHour: 66.67, percentAbove2Hours: 66.67, percentAbove5Hours: 50.00, avgHoursPerCamera: 11.41, casesChangeFromT0: "-77 (-66.96%)", hoursChangeFromT0: "-48.99 (-46.2%)", casesChangeFromPrev: "-19 (-33.33%)", hoursChangeFromPrev: "-12.84 (-18.37%)"},
+            {store: "AMPM, בת ים - בן גוריון", network: "AMPM", week: "שבוע 3", dateRange: "2025-05-22 - 2025-05-27", period: "T3", cases: 119, hours: 71.91, avgTime: 7.19, medianTime: 8.6, topCategory: "בירה, משקאות חריפים (92.0)", bottomCategory: "חטיפים מלוחים (5.0)", topDay: "2025-05-26 (83.0)", bottomDay: "2025-05-22 (2.0)", percentAboveHour: 90.91, percentAbove2Hours: 72.73, percentAbove5Hours: 72.73, avgHoursPerCamera: 14.38, casesChangeFromT0: "4 (3.48%)", hoursChangeFromT0: "-34.14 (-32.19%)", casesChangeFromPrev: "81 (213.16%)", hoursChangeFromPrev: "14.85 (26.03%)"},
+            {store: "AMPM, בת ים - בן גוריון", network: "AMPM", week: "שבוע 4", dateRange: "2025-05-29 - 2025-06-03", period: "T4", cases: 31, hours: 30.05, avgTime: 3.01, medianTime: 2.41, topCategory: "משקאות קלים (22)", bottomCategory: "שוקולד טבלאות, חטיפים בודדים (3)", topDay: "2025-06-03 (12)", bottomDay: "2025-05-30 (1)", percentAboveHour: 100.00, percentAbove2Hours: 50.00, percentAbove5Hours: 10.00, avgHoursPerCamera: 6.01, casesChangeFromT0: "-84 (-73.04%)", hoursChangeFromT0: "-76.0 (-71.66%)", casesChangeFromPrev: "-88 (-73.95%)", hoursChangeFromPrev: "-41.86 (-58.21%)"},
+            {store: "AMPM, בת ים - בן גוריון", network: "AMPM", week: "שבוע 5", dateRange: "2025-06-05 - 2025-06-10", period: "T5", cases: 36, hours: 40, avgTime: 5, medianTime: 5.28, topCategory: "משקאות קלים (25)", bottomCategory: "חטיפים מלוחים (3)", topDay: "2025-06-10 (16)", bottomDay: "2025-06-06 (1)", percentAboveHour: 87.50, percentAbove2Hours: 75.00, percentAbove5Hours: 62.50, avgHoursPerCamera: 8, casesChangeFromT0: "-79 (-68.7%)", hoursChangeFromT0: "-66.05 (-62.28%)", casesChangeFromPrev: "5 (16.13%)", hoursChangeFromPrev: "9.95 (33.11%)"},
+            {store: "AMPM, בת ים - בן גוריון", network: "AMPM", week: "שבוע 6", dateRange: "2025-06-12 - 2025-06-17", period: "T6", cases: 59, hours: 58.92, avgTime: 6.55, medianTime: 9, topCategory: "משקאות קלים (33)", bottomCategory: "בירה, משקאות חריפים (1)", topDay: "2025-06-16 (25)", bottomDay: "2025-06-13 (3)", percentAboveHour: 100.00, percentAbove2Hours: 88.89, percentAbove5Hours: 66.67, avgHoursPerCamera: 11.78, casesChangeFromT0: "-56 (-48.7%)", hoursChangeFromT0: "-47.13 (-44.44%)", casesChangeFromPrev: "23 (63.89%)", hoursChangeFromPrev: "18.92 (47.3%)"},
+            {store: "AMPM, בת ים - בן גוריון", network: "AMPM", week: "שבוע 7", dateRange: "2025-06-19 - 2025-06-24", period: "T7", cases: 74, hours: 70.97, avgTime: 4.73, medianTime: 4.74, topCategory: "משקאות קלים (31.0)", bottomCategory: "חטיפים מלוחים (3.0)", topDay: "2025-06-24 (28.0)", bottomDay: "2025-06-20 (8.0)", percentAboveHour: 93.75, percentAbove2Hours: 75.00, percentAbove5Hours: 37.50, avgHoursPerCamera: 14.19, casesChangeFromT0: "-41 (-35.65%)", hoursChangeFromT0: "-35.08 (-33.08%)", casesChangeFromPrev: "15 (25.42%)", hoursChangeFromPrev: "12.05 (20.45%)"},
+            {store: "AMPM, בת ים - בן גוריון", network: "AMPM", week: "שבוע 8", dateRange: "2025-06-26 - 2025-07-01", period: "T8", cases: 37, hours: 40.24, avgTime: 3.35, medianTime: 1.5, topCategory: "משקאות קלים (20)", bottomCategory: "דגים/בשר משומר (2)", topDay: "2025-06-26 (14)", bottomDay: "2025-06-30 (3)", percentAboveHour: 100.00, percentAbove2Hours: 41.67, percentAbove5Hours: 33.33, avgHoursPerCamera: 8.05, casesChangeFromT0: "-78 (-67.83%)", hoursChangeFromT0: "-65.81 (-62.06%)", casesChangeFromPrev: "-37 (-50.0%)", hoursChangeFromPrev: "-30.73 (-43.3%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 0", dateRange: "2025-04-06 - 2025-04-11", period: "T0", cases: 118, hours: 144.1, avgTime: 4.97, medianTime: 4.04, topCategory: "דבש/ריבה/ממרח (41)", bottomCategory: "טיפוח שיניים (1)", topDay: "2025-04-09 (24)", bottomDay: "2025-04-11 (16)", percentAboveHour: 100.00, percentAbove2Hours: 79.31, percentAbove5Hours: 41.38, avgHoursPerCamera: 24.02, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 1", dateRange: "2025-04-13 - 2025-04-18", period: "T1", cases: 86, hours: 102.03, avgTime: 6, medianTime: 5.95, topCategory: "דבש/ריבה/ממרח (41.0)", bottomCategory: "רטבים ותוספות (1.0)", topDay: "2025-04-16 (24.0)", bottomDay: "2025-04-18 (9.0)", percentAboveHour: 94.44, percentAbove2Hours: 88.89, percentAbove5Hours: 61.11, avgHoursPerCamera: 17, casesChangeFromT0: "-32 (-27.12%)", hoursChangeFromT0: "-42.07 (-29.2%)", casesChangeFromPrev: "-32 (-27.12%)", hoursChangeFromPrev: "-42.07 (-29.2%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 2", dateRange: "2025-04-20 - 2025-04-25", period: "T2", cases: 160, hours: 156.61, avgTime: 5.59, medianTime: 5, topCategory: "עוגיות, עוגיות פרימיום (72)", bottomCategory: "משקאות קלים (6)", topDay: "2025-04-22 (46)", bottomDay: "2025-04-21 (13)", percentAboveHour: 100.00, percentAbove2Hours: 82.14, percentAbove5Hours: 50.00, avgHoursPerCamera: 26.1, casesChangeFromT0: "42 (35.59%)", hoursChangeFromT0: "12.51 (8.68%)", casesChangeFromPrev: "74 (86.05%)", hoursChangeFromPrev: "54.58 (53.49%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 3", dateRange: "2025-04-27 - 2025-05-02", period: "T3", cases: 93, hours: 96.66, avgTime: 4.6, medianTime: 3.94, topCategory: "עוגיות, עוגיות פרימיום (48)", bottomCategory: "משקאות קלים (3)", topDay: "2025-04-29 (27)", bottomDay: "2025-04-28 (12)", percentAboveHour: 90.48, percentAbove2Hours: 76.19, percentAbove5Hours: 28.57, avgHoursPerCamera: 16.11, casesChangeFromT0: "-25 (-21.19%)", hoursChangeFromT0: "-47.44 (-32.92%)", casesChangeFromPrev: "-67 (-41.88%)", hoursChangeFromPrev: "-59.95 (-38.28%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 4", dateRange: "2025-05-04 - 2025-05-09", period: "T4", cases: 101, hours: 152.5, avgTime: 4.77, medianTime: 4.04, topCategory: "עוגיות, עוגיות פרימיום (52.0)", bottomCategory: "משקאות קלים (5.0)", topDay: "2025-05-08 (27.0)", bottomDay: "2025-05-05 (11.0)", percentAboveHour: 88.89, percentAbove2Hours: 66.67, percentAbove5Hours: 33.33, avgHoursPerCamera: 25.42, casesChangeFromT0: "-17 (-14.41%)", hoursChangeFromT0: "8.4 (5.83%)", casesChangeFromPrev: "8 (8.6%)", hoursChangeFromPrev: "55.84 (57.77%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 5", dateRange: "2025-05-11 - 2025-05-16", period: "T5", cases: 80, hours: 143.06, avgTime: 4.93, medianTime: 4.97, topCategory: "עוגיות, עוגיות פרימיום (39.0)", bottomCategory: "טיפוח שיניים (0.0)", topDay: "2025-05-15 (23.0)", bottomDay: "2025-05-14 (8.0)", percentAboveHour: 87.50, percentAbove2Hours: 75.00, percentAbove5Hours: 37.50, avgHoursPerCamera: 23.84, casesChangeFromT0: "-38 (-32.2%)", hoursChangeFromT0: "-1.04 (-0.72%)", casesChangeFromPrev: "-21 (-20.79%)", hoursChangeFromPrev: "-9.44 (-6.19%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 6", dateRange: "2025-05-18 - 2025-05-23", period: "T6", cases: 47, hours: 118.76, avgTime: 5.16, medianTime: 4.94, topCategory: "עוגיות, עוגיות פרימיום (24.0)", bottomCategory: "טיפוח שיער (1.0)", topDay: "2025-05-21 (9.0)", bottomDay: "2025-05-18 (6.0)", percentAboveHour: 88.46, percentAbove2Hours: 69.23, percentAbove5Hours: 38.46, avgHoursPerCamera: 19.79, casesChangeFromT0: "-71 (-60.17%)", hoursChangeFromT0: "-25.34 (-17.59%)", casesChangeFromPrev: "-33 (-41.25%)", hoursChangeFromPrev: "-24.3 (-16.99%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 7", dateRange: "2025-05-25 - 2025-05-30", period: "T7", cases: 57, hours: 77.67, avgTime: 3.53, medianTime: 2.02, topCategory: "עוגיות, עוגיות פרימיום (35)", bottomCategory: "טיפוח שיער (3)", topDay: "2025-05-25 (22)", bottomDay: "2025-05-26 (4)", percentAboveHour: 81.82, percentAbove2Hours: 50.00, percentAbove5Hours: 22.73, avgHoursPerCamera: 12.95, casesChangeFromT0: "-61 (-51.69%)", hoursChangeFromT0: "-66.43 (-46.1%)", casesChangeFromPrev: "10 (21.28%)", hoursChangeFromPrev: "-41.09 (-34.6%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 8", dateRange: "2025-06-01 - 2025-06-06", period: "T8", cases: 169, hours: 94.41, avgTime: 4.72, medianTime: 5.02, topCategory: "רטבים ותוספות (116)", bottomCategory: "משקאות קלים (2)", topDay: "2025-06-03 (53)", bottomDay: "2025-06-06 (15)", percentAboveHour: 90.00, percentAbove2Hours: 75.00, percentAbove5Hours: 55.00, avgHoursPerCamera: 15.74, casesChangeFromT0: "51 (43.22%)", hoursChangeFromT0: "-49.69 (-34.48%)", casesChangeFromPrev: "112 (196.49%)", hoursChangeFromPrev: "16.74 (21.55%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 9", dateRange: "2025-06-08 - 2025-06-13", period: "T9", cases: 64, hours: 88.61, avgTime: 4.03, medianTime: 3.58, topCategory: "עוגיות, עוגיות פרימיום (30)", bottomCategory: "משקאות קלים (4)", topDay: "2025-06-12 (19)", bottomDay: "2025-06-09 (1)", percentAboveHour: 95.45, percentAbove2Hours: 63.64, percentAbove5Hours: 31.82, avgHoursPerCamera: 14.77, casesChangeFromT0: "-54 (-45.76%)", hoursChangeFromT0: "-55.49 (-38.51%)", casesChangeFromPrev: "-105 (-62.13%)", hoursChangeFromPrev: "-5.8 (-6.14%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 10", dateRange: "2025-06-15 - 2025-06-20", period: "T10", cases: 140, hours: 173.33, avgTime: 4.13, medianTime: 2.99, topCategory: "עוגיות, עוגיות פרימיום (43)", bottomCategory: "משקאות קלים (8)", topDay: "2025-06-15 (33)", bottomDay: "2025-06-16 (17)", percentAboveHour: 97.62, percentAbove2Hours: 64.29, percentAbove5Hours: 33.33, avgHoursPerCamera: 28.89, casesChangeFromT0: "22 (18.64%)", hoursChangeFromT0: "29.23 (20.28%)", casesChangeFromPrev: "76 (118.75%)", hoursChangeFromPrev: "84.72 (95.61%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 11", dateRange: "2025-06-22 - 2025-06-27", period: "T11", cases: 50, hours: 88.94, avgTime: 3.87, medianTime: 3, topCategory: "עוגיות, עוגיות פרימיום (18.0)", bottomCategory: "טיפוח שיניים (1.0)", topDay: "2025-06-26 (13.0)", bottomDay: "2025-06-24 (2.0)", percentAboveHour: 83.33, percentAbove2Hours: 66.67, percentAbove5Hours: 33.33, avgHoursPerCamera: 14.82, casesChangeFromT0: "-68 (-57.63%)", hoursChangeFromT0: "-55.16 (-38.28%)", casesChangeFromPrev: "-90 (-64.29%)", hoursChangeFromPrev: "-84.39 (-48.69%)"},
+            {store: "יוחננוף, תלפיות - ירושלים", network: "יוחננוף", week: "שבוע 12", dateRange: "2025-06-29 - 2025-07-04", period: "T12", cases: 9, hours: 28.93, avgTime: 4.13, medianTime: 1.99, topCategory: "דיסות, תחליפי חלב אם (3.0)", bottomCategory: "טיפוח שיער (1.0)", topDay: "2025-06-29 (4.0)", bottomDay: "2025-07-02 (0.0)", percentAboveHour: 50.00, percentAbove2Hours: 25.00, percentAbove5Hours: 25.00, avgHoursPerCamera: 4.82, casesChangeFromT0: "-109 (-92.37%)", hoursChangeFromT0: "-115.17 (-79.92%)", casesChangeFromPrev: "-41 (-82.0%)", hoursChangeFromPrev: "-60.01 (-67.47%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 0", dateRange: "2025-02-11 - 2025-02-16", period: "T0", cases: 33, hours: 59.59, avgTime: 4.26, medianTime: 4, topCategory: "משקאות קלים (24.0)", bottomCategory: "ניקוי הבית, שטיפת כלים (1.0)", topDay: "2025-02-12 (12.0)", bottomDay: "2025-02-11 (0.0)", percentAboveHour: 51.85, percentAbove2Hours: 51.85, percentAbove5Hours: 14.81, avgHoursPerCamera: 9.93, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 1", dateRange: "2025-02-18 - 2025-02-23", period: "T1", cases: 32, hours: 35.94, avgTime: 2.11, medianTime: 1.97, topCategory: "משקאות קלים (21)", bottomCategory: "חטיפים מלוחים (5)", topDay: "2025-02-21 (10)", bottomDay: "2025-02-18 (3)", percentAboveHour: 76.47, percentAbove2Hours: 47.06, percentAbove5Hours: 5.88, avgHoursPerCamera: 5.99, casesChangeFromT0: "-1 (-3.03%)", hoursChangeFromT0: "-23.65 (-39.69%)", casesChangeFromPrev: "-1 (-3.03%)", hoursChangeFromPrev: "-23.65 (-39.69%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 2", dateRange: "2025-02-25 - 2025-03-02", period: "T2", cases: 33, hours: 48.35, avgTime: 2.84, medianTime: 2.01, topCategory: "משקאות קלים (27)", bottomCategory: "חטיפים מלוחים (6)", topDay: "2025-03-02 (11)", bottomDay: "2025-02-27 (3)", percentAboveHour: 88.24, percentAbove2Hours: 52.94, percentAbove5Hours: 17.65, avgHoursPerCamera: 8.06, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "-11.24 (-18.86%)", casesChangeFromPrev: "1 (3.12%)", hoursChangeFromPrev: "12.41 (34.53%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 3", dateRange: "2025-03-04 - 2025-03-09", period: "T3", cases: 31, hours: 55.22, avgTime: 2.91, medianTime: 2.01, topCategory: "משקאות קלים (16)", bottomCategory: "ניקוי הבית, שטיפת כלים (6)", topDay: "2025-03-09 (16)", bottomDay: "2025-03-06 (2)", percentAboveHour: 100.00, percentAbove2Hours: 52.63, percentAbove5Hours: 15.79, avgHoursPerCamera: 9.2, casesChangeFromT0: "-2 (-6.06%)", hoursChangeFromT0: "-4.37 (-7.33%)", casesChangeFromPrev: "-2 (-6.06%)", hoursChangeFromPrev: "6.87 (14.21%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 4", dateRange: "2025-03-11 - 2025-03-16", period: "T4", cases: 71, hours: 94.46, avgTime: 4.72, medianTime: 3.08, topCategory: "משקאות קלים (47)", bottomCategory: "ניקוי הבית, שטיפת כלים (5)", topDay: "2025-03-14 (20)", bottomDay: "2025-03-13 (7)", percentAboveHour: 95.00, percentAbove2Hours: 85.00, percentAbove5Hours: 45.00, avgHoursPerCamera: 15.74, casesChangeFromT0: "38 (115.15%)", hoursChangeFromT0: "34.87 (58.52%)", casesChangeFromPrev: "40 (129.03%)", hoursChangeFromPrev: "39.24 (71.06%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 5", dateRange: "2025-03-18 - 2025-03-23", period: "T5", cases: 45, hours: 66.23, avgTime: 6.02, medianTime: 6.04, topCategory: "משקאות קלים (39.0)", bottomCategory: "חטיפים מלוחים (1.0)", topDay: "2025-03-20 (14.0)", bottomDay: "2025-03-23 (4.0)", percentAboveHour: 91.67, percentAbove2Hours: 83.33, percentAbove5Hours: 66.67, avgHoursPerCamera: 11.04, casesChangeFromT0: "12 (36.36%)", hoursChangeFromT0: "6.64 (11.14%)", casesChangeFromPrev: "-26 (-36.62%)", hoursChangeFromPrev: "-28.23 (-29.89%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 6", dateRange: "2025-03-25 - 2025-03-30", period: "T6", cases: 48, hours: 56.99, avgTime: 4.75, medianTime: 3.51, topCategory: "משקאות קלים (42)", bottomCategory: "ניקוי הבית, שטיפת כלים (1)", topDay: "2025-03-26 (18)", bottomDay: "2025-03-30 (5)", percentAboveHour: 91.67, percentAbove2Hours: 75.00, percentAbove5Hours: 41.67, avgHoursPerCamera: 9.5, casesChangeFromT0: "15 (45.45%)", hoursChangeFromT0: "-2.6 (-4.36%)", casesChangeFromPrev: "3 (6.67%)", hoursChangeFromPrev: "-9.24 (-13.95%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 7", dateRange: "2025-04-01 - 2025-04-06", period: "T7", cases: 38, hours: 76.02, avgTime: 5.07, medianTime: 3.99, topCategory: "משקאות קלים (25.0)", bottomCategory: "ניקוי הבית, שטיפת כלים (6.0)", topDay: "2025-04-04 (15.0)", bottomDay: "2025-04-06 (4.0)", percentAboveHour: 57.89, percentAbove2Hours: 57.89, percentAbove5Hours: 31.58, avgHoursPerCamera: 12.67, casesChangeFromT0: "5 (15.15%)", hoursChangeFromT0: "16.43 (27.57%)", casesChangeFromPrev: "-10 (-20.83%)", hoursChangeFromPrev: "19.03 (33.39%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 8", dateRange: "2025-04-08 - 2025-04-13", period: "T8", cases: 28, hours: 47.2, avgTime: 3.63, medianTime: 2.92, topCategory: "משקאות קלים (21.0)", bottomCategory: "ניקוי הבית, שטיפת כלים (2.0)", topDay: "2025-04-09 (10.0)", bottomDay: "2025-04-11 (2.0)", percentAboveHour: 92.86, percentAbove2Hours: 71.43, percentAbove5Hours: 28.57, avgHoursPerCamera: 7.87, casesChangeFromT0: "-5 (-15.15%)", hoursChangeFromT0: "-12.39 (-20.79%)", casesChangeFromPrev: "-10 (-26.32%)", hoursChangeFromPrev: "-28.82 (-37.91%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 9", dateRange: "2025-04-15 - 2025-04-20", period: "T9", cases: 40, hours: 76.03, avgTime: 5.07, medianTime: 5.05, topCategory: "משקאות קלים (24)", bottomCategory: "ניקוי הבית, שטיפת כלים (4)", topDay: "2025-04-20 (12)", bottomDay: "2025-04-17 (4)", percentAboveHour: 100.00, percentAbove2Hours: 80.00, percentAbove5Hours: 53.33, avgHoursPerCamera: 12.67, casesChangeFromT0: "7 (21.21%)", hoursChangeFromT0: "16.44 (27.59%)", casesChangeFromPrev: "12 (42.86%)", hoursChangeFromPrev: "28.83 (61.08%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 10", dateRange: "2025-04-22 - 2025-04-27", period: "T10", cases: 65, hours: 98.05, avgTime: 4.09, medianTime: 3.48, topCategory: "משקאות קלים (51)", bottomCategory: "ניקוי הבית, שטיפת כלים (3)", topDay: "2025-04-22 (17)", bottomDay: "2025-04-24 (9)", percentAboveHour: 95.83, percentAbove2Hours: 66.67, percentAbove5Hours: 37.50, avgHoursPerCamera: 16.34, casesChangeFromT0: "32 (96.97%)", hoursChangeFromT0: "38.46 (64.54%)", casesChangeFromPrev: "25 (62.5%)", hoursChangeFromPrev: "22.02 (28.96%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 11", dateRange: "2025-04-29 - 2025-05-04", period: "T11", cases: 55, hours: 70.03, avgTime: 3.69, medianTime: 2.96, topCategory: "משקאות קלים (31)", bottomCategory: "ניקוי הבית, שטיפת כלים (6)", topDay: "2025-05-04 (20)", bottomDay: "2025-04-29 (8)", percentAboveHour: 84.21, percentAbove2Hours: 63.16, percentAbove5Hours: 31.58, avgHoursPerCamera: 11.67, casesChangeFromT0: "22 (66.67%)", hoursChangeFromT0: "10.44 (17.52%)", casesChangeFromPrev: "-10 (-15.38%)", hoursChangeFromPrev: "-28.02 (-28.58%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 12", dateRange: "2025-05-06 - 2025-05-11", period: "T12", cases: 41, hours: 62.14, avgTime: 3.66, medianTime: 3.03, topCategory: "משקאות קלים (27)", bottomCategory: "ניקוי הבית, שטיפת כלים (4)", topDay: "2025-05-11 (13)", bottomDay: "2025-05-07 (1)", percentAboveHour: 88.24, percentAbove2Hours: 64.71, percentAbove5Hours: 23.53, avgHoursPerCamera: 10.36, casesChangeFromT0: "8 (24.24%)", hoursChangeFromT0: "2.55 (4.28%)", casesChangeFromPrev: "-14 (-25.45%)", hoursChangeFromPrev: "-7.89 (-11.27%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 13", dateRange: "2025-05-13 - 2025-05-18", period: "T13", cases: 30, hours: 62.44, avgTime: 2.84, medianTime: 2.01, topCategory: "משקאות קלים (20.0)", bottomCategory: "ניקוי הבית, שטיפת כלים (2.0)", topDay: "2025-05-13 (8.0)", bottomDay: "2025-05-14 (4.0)", percentAboveHour: 83.33, percentAbove2Hours: 58.33, percentAbove5Hours: 16.67, avgHoursPerCamera: 10.41, casesChangeFromT0: "-3 (-9.09%)", hoursChangeFromT0: "2.85 (4.78%)", casesChangeFromPrev: "-11 (-26.83%)", hoursChangeFromPrev: "0.3 (0.48%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 14", dateRange: "2025-05-20 - 2025-05-25", period: "T14", cases: 41, hours: 62.92, avgTime: 3.31, medianTime: 2.99, topCategory: "משקאות קלים (21.0)", bottomCategory: "ניקוי הבית, שטיפת כלים (1.0)", topDay: "2025-05-23 (14.0)", bottomDay: "2025-05-22 (4.0)", percentAboveHour: 80.00, percentAbove2Hours: 55.00, percentAbove5Hours: 25.00, avgHoursPerCamera: 10.49, casesChangeFromT0: "8 (24.24%)", hoursChangeFromT0: "3.33 (5.59%)", casesChangeFromPrev: "11 (36.67%)", hoursChangeFromPrev: "0.48 (0.77%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 15", dateRange: "2025-05-27 - 2025-06-01", period: "T15", cases: 47, hours: 68.25, avgTime: 4.27, medianTime: 3.98, topCategory: "משקאות קלים (30)", bottomCategory: "ניקוי הבית, שטיפת כלים (4)", topDay: "2025-06-01 (14)", bottomDay: "2025-05-30 (6)", percentAboveHour: 93.75, percentAbove2Hours: 93.75, percentAbove5Hours: 31.25, avgHoursPerCamera: 11.38, casesChangeFromT0: "14 (42.42%)", hoursChangeFromT0: "8.66 (14.53%)", casesChangeFromPrev: "6 (14.63%)", hoursChangeFromPrev: "5.33 (8.47%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 16", dateRange: "2025-06-03 - 2025-06-08", period: "T16", cases: 48, hours: 98.81, avgTime: 4.94, medianTime: 4.46, topCategory: "משקאות קלים (35.0)", bottomCategory: "ניקוי הבית, שטיפת כלים (6.0)", topDay: "2025-06-04 (21.0)", bottomDay: "2025-06-05 (2.0)", percentAboveHour: 90.48, percentAbove2Hours: 85.71, percentAbove5Hours: 42.86, avgHoursPerCamera: 16.47, casesChangeFromT0: "15 (45.45%)", hoursChangeFromT0: "39.22 (65.82%)", casesChangeFromPrev: "1 (2.13%)", hoursChangeFromPrev: "30.56 (44.78%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 17", dateRange: "2025-06-10 - 2025-06-15", period: "T17", cases: 50, hours: 67.47, avgTime: 5.19, medianTime: 4.07, topCategory: "משקאות קלים (31)", bottomCategory: "ניקוי הבית, שטיפת כלים (2)", topDay: "2025-06-15 (28)", bottomDay: "2025-06-10 (2)", percentAboveHour: 100.00, percentAbove2Hours: 84.62, percentAbove5Hours: 38.46, avgHoursPerCamera: 11.24, casesChangeFromT0: "17 (51.52%)", hoursChangeFromT0: "7.88 (13.22%)", casesChangeFromPrev: "2 (4.17%)", hoursChangeFromPrev: "-31.34 (-31.72%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 18", dateRange: "2025-06-17 - 2025-06-22", period: "T18", cases: 45, hours: 53.97, avgTime: 4.15, medianTime: 3, topCategory: "משקאות קלים (37)", bottomCategory: "ניקוי הבית, שטיפת כלים (2)", topDay: "2025-06-20 (19)", bottomDay: "2025-06-17 (8)", percentAboveHour: 100.00, percentAbove2Hours: 92.31, percentAbove5Hours: 30.77, avgHoursPerCamera: 8.99, casesChangeFromT0: "12 (36.36%)", hoursChangeFromT0: "-5.62 (-9.43%)", casesChangeFromPrev: "-5 (-10.0%)", hoursChangeFromPrev: "-13.5 (-20.01%)"},
+            {store: "קרפור, תל אביב - לה גרדיה", network: "קרפור", week: "שבוע 19", dateRange: "2025-06-24 - 2025-06-29", period: "T19", cases: 36, hours: 75.03, avgTime: 5, medianTime: 4.99, topCategory: "משקאות קלים (24)", bottomCategory: "חטיפים מלוחים (6)", topDay: "2025-06-29 (10)", bottomDay: "2025-06-24 (5)", percentAboveHour: 100.00, percentAbove2Hours: 86.67, percentAbove5Hours: 46.67, avgHoursPerCamera: 12.5, casesChangeFromT0: "3 (9.09%)", hoursChangeFromT0: "15.44 (25.91%)", casesChangeFromPrev: "-9 (-20.0%)", hoursChangeFromPrev: "21.06 (39.02%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 0", dateRange: "2025-04-06 - 2025-04-11", period: "T0", cases: 443, hours: 374.41, avgTime: 7.06, medianTime: 8.98, topCategory: "משקאות קלים (130.0)", bottomCategory: "פסטה/קוסקוס/פתיתים (1.0)", topDay: "2025-04-09 (104.0)", bottomDay: "2025-04-11 (10.0)", percentAboveHour: 98.15, percentAbove2Hours: 85.19, percentAbove5Hours: 77.78, avgHoursPerCamera: 26.74, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 1", dateRange: "2025-04-13 - 2025-04-18", period: "T1", cases: 75, hours: 128.14, avgTime: 6.74, medianTime: 8.01, topCategory: "תכשירי כביסה (29.0)", bottomCategory: "תכשירי כביסה, שטיפת כלים, ניקוי הבית (8.0)", topDay: "2025-04-17 (20.0)", bottomDay: "2025-04-18 (9.0)", percentAboveHour: 90.48, percentAbove2Hours: 90.48, percentAbove5Hours: 66.67, avgHoursPerCamera: 9.15, casesChangeFromT0: "-368 (-83.07%)", hoursChangeFromT0: "-246.27 (-65.78%)", casesChangeFromPrev: "-368 (-83.07%)", hoursChangeFromPrev: "-246.27 (-65.78%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 2", dateRange: "2025-04-20 - 2025-04-25", period: "T2", cases: 514, hours: 491.85, avgTime: 6.15, medianTime: 7.05, topCategory: "משקאות קלים (94.0)", bottomCategory: "שימורי עגבניות (4.0)", topDay: "2025-04-22 (101.0)", bottomDay: "2025-04-24 (62.0)", percentAboveHour: 85.06, percentAbove2Hours: 78.16, percentAbove5Hours: 59.77, avgHoursPerCamera: 35.13, casesChangeFromT0: "71 (16.03%)", hoursChangeFromT0: "117.44 (31.37%)", casesChangeFromPrev: "439 (585.33%)", hoursChangeFromPrev: "363.71 (283.84%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 3", dateRange: "2025-04-27 - 2025-05-02", period: "T3", cases: 422, hours: 367.58, avgTime: 5.74, medianTime: 5.12, topCategory: "טיפוח שיער (99.0)", bottomCategory: "פסטה/קוסקוס/פתיתים (1.0)", topDay: "2025-04-27 (133.0)", bottomDay: "2025-05-02 (54.0)", percentAboveHour: 86.15, percentAbove2Hours: 78.46, percentAbove5Hours: 56.92, avgHoursPerCamera: 26.26, casesChangeFromT0: "-21 (-4.74%)", hoursChangeFromT0: "-6.83 (-1.82%)", casesChangeFromPrev: "-92 (-17.9%)", hoursChangeFromPrev: "-124.27 (-25.27%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 4", dateRange: "2025-05-04 - 2025-05-09", period: "T4", cases: 414, hours: 485.51, avgTime: 5.99, medianTime: 5.06, topCategory: "שוקולד טבלאות, חטיפים בודדים (101.0)", bottomCategory: "פסטה/קוסקוס/פתיתים (3.0)", topDay: "2025-05-09 (84.0)", bottomDay: "2025-05-05 (45.0)", percentAboveHour: 97.56, percentAbove2Hours: 91.46, percentAbove5Hours: 59.76, avgHoursPerCamera: 34.68, casesChangeFromT0: "-29 (-6.55%)", hoursChangeFromT0: "111.1 (29.67%)", casesChangeFromPrev: "-8 (-1.9%)", hoursChangeFromPrev: "117.93 (32.08%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 5", dateRange: "2025-05-11 - 2025-05-16", period: "T5", cases: 542, hours: 567.46, avgTime: 6.38, medianTime: 7.16, topCategory: "משקאות קלים (112.0)", bottomCategory: "דיסות, תחליפי חלב אם (10.0)", topDay: "2025-05-11 (111.0)", bottomDay: "2025-05-13 (67.0)", percentAboveHour: 97.80, percentAbove2Hours: 90.11, percentAbove5Hours: 62.64, avgHoursPerCamera: 40.53, casesChangeFromT0: "99 (22.35%)", hoursChangeFromT0: "193.05 (51.56%)", casesChangeFromPrev: "128 (30.92%)", hoursChangeFromPrev: "81.95 (16.88%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 6", dateRange: "2025-05-18 - 2025-05-23", period: "T6", cases: 447, hours: 498, avgTime: 6.64, medianTime: 7.98, topCategory: "משקאות קלים (105.0)", bottomCategory: "דיסות, תחליפי חלב אם (5.0)", topDay: "2025-05-20 (97.0)", bottomDay: "2025-05-23 (63.0)", percentAboveHour: 92.21, percentAbove2Hours: 85.71, percentAbove5Hours: 72.73, avgHoursPerCamera: 35.57, casesChangeFromT0: "4 (0.9%)", hoursChangeFromT0: "123.59 (33.01%)", casesChangeFromPrev: "-95 (-17.53%)", hoursChangeFromPrev: "-69.46 (-12.24%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 7", dateRange: "2025-05-25 - 2025-05-30", period: "T7", cases: 415, hours: 440.77, avgTime: 5.72, medianTime: 4.98, topCategory: "שוקולד טבלאות, חטיפים בודדים (77.0)", bottomCategory: "דיסות, תחליפי חלב אם (2.0)", topDay: "2025-05-29 (92.0)", bottomDay: "2025-05-27 (44.0)", percentAboveHour: 94.87, percentAbove2Hours: 84.62, percentAbove5Hours: 48.72, avgHoursPerCamera: 31.48, casesChangeFromT0: "-28 (-6.32%)", hoursChangeFromT0: "66.36 (17.72%)", casesChangeFromPrev: "-32 (-7.16%)", hoursChangeFromPrev: "-57.23 (-11.49%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 8", dateRange: "2025-06-01 - 2025-06-06", period: "T8", cases: 439, hours: 410.33, avgTime: 6.12, medianTime: 6.03, topCategory: "שוקולד טבלאות, חטיפים בודדים (80)", bottomCategory: "דיסות, תחליפי חלב אם (5)", topDay: "2025-06-01 (105)", bottomDay: "2025-06-06 (68)", percentAboveHour: 97.01, percentAbove2Hours: 94.03, percentAbove5Hours: 61.19, avgHoursPerCamera: 29.31, casesChangeFromT0: "-4 (-0.9%)", hoursChangeFromT0: "35.92 (9.59%)", casesChangeFromPrev: "24 (5.78%)", hoursChangeFromPrev: "-30.44 (-6.91%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 9", dateRange: "2025-06-08 - 2025-06-13", period: "T9", cases: 451, hours: 475.06, avgTime: 6.25, medianTime: 6.96, topCategory: "משקאות קלים (86)", bottomCategory: "בירה, משקאות חריפים (2)", topDay: "2025-06-08 (92)", bottomDay: "2025-06-12 (53)", percentAboveHour: 97.37, percentAbove2Hours: 85.53, percentAbove5Hours: 71.05, avgHoursPerCamera: 33.93, casesChangeFromT0: "8 (1.81%)", hoursChangeFromT0: "100.65 (26.88%)", casesChangeFromPrev: "12 (2.73%)", hoursChangeFromPrev: "64.73 (15.78%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 10", dateRange: "2025-06-15 - 2025-06-20", period: "T10", cases: 650, hours: 451.53, avgTime: 5.79, medianTime: 5.02, topCategory: "תכשירי כביסה (155)", bottomCategory: "שימורי עגבניות (3)", topDay: "2025-06-19 (124)", bottomDay: "2025-06-15 (95)", percentAboveHour: 97.44, percentAbove2Hours: 85.90, percentAbove5Hours: 58.97, avgHoursPerCamera: 32.25, casesChangeFromT0: "207 (46.73%)", hoursChangeFromT0: "77.12 (20.6%)", casesChangeFromPrev: "199 (44.12%)", hoursChangeFromPrev: "-23.53 (-4.95%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 11", dateRange: "2025-06-22 - 2025-06-27", period: "T11", cases: 420, hours: 358.78, avgTime: 5.05, medianTime: 4.99, topCategory: "טיפוח שיער (99.0)", bottomCategory: "שימורי עגבניות (1.0)", topDay: "2025-06-22 (92.0)", bottomDay: "2025-06-27 (56.0)", percentAboveHour: 91.67, percentAbove2Hours: 66.67, percentAbove5Hours: 48.61, avgHoursPerCamera: 25.63, casesChangeFromT0: "-23 (-5.19%)", hoursChangeFromT0: "-15.63 (-4.17%)", casesChangeFromPrev: "-230 (-35.38%)", hoursChangeFromPrev: "-92.75 (-20.54%)"},
+            {store: "יוחננוף, רמלה", network: "יוחננוף", week: "שבוע 12", dateRange: "2025-06-29 - 2025-07-04", period: "T12", cases: 127, hours: 135.99, avgTime: 5.04, medianTime: 4.98, topCategory: "טיפוח שיער (27.0)", bottomCategory: "דיסות, תחליפי חלב אם (0.0)", topDay: "2025-06-29 (52.0)", bottomDay: "2025-07-02 (0.0)", percentAboveHour: 76.47, percentAbove2Hours: 70.59, percentAbove5Hours: 38.24, avgHoursPerCamera: 9.71, casesChangeFromT0: "-316 (-71.33%)", hoursChangeFromT0: "-238.42 (-63.68%)", casesChangeFromPrev: "-293 (-69.76%)", hoursChangeFromPrev: "-222.79 (-62.1%)"},
+            {store: "AMPM, תל אביב - זבוטינסקי", network: "AMPM", week: "שבוע 0", dateRange: "2025-05-01 - 2025-05-06", period: "T0", cases: 88, hours: 110.04, avgTime: 7.86, medianTime: 9, topCategory: "דגים/בשר משומר (34)", bottomCategory: "טיפוח שיער (7)", topDay: "2025-05-04 (21)", bottomDay: "2025-05-02 (14)", percentAboveHour: 100.00, percentAbove2Hours: 92.86, percentAbove5Hours: 92.86, avgHoursPerCamera: 18.34, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "AMPM, תל אביב - זבוטינסקי", network: "AMPM", week: "שבוע 1", dateRange: "2025-05-08 - 2025-05-13", period: "T1", cases: 10, hours: 27, avgTime: 5.4, medianTime: 5.01, topCategory: "דגים/בשר משומר (4)", bottomCategory: "טיפוח שיער (2)", topDay: "2025-05-12 (4)", bottomDay: "2025-05-08 (1)", percentAboveHour: 100.00, percentAbove2Hours: 100.00, percentAbove5Hours: 60.00, avgHoursPerCamera: 4.5, casesChangeFromT0: "-78 (-88.64%)", hoursChangeFromT0: "-83.04 (-75.46%)", casesChangeFromPrev: "-78 (-88.64%)", hoursChangeFromPrev: "-83.04 (-75.46%)"},
+            {store: "AMPM, תל אביב - זבוטינסקי", network: "AMPM", week: "שבוע 2", dateRange: "2025-05-15 - 2025-05-20", period: "T2", cases: 4, hours: 3.98, avgTime: 1.99, medianTime: 1.99, topCategory: "טיפוח שיער (4.0)", bottomCategory: "דגים/בשר משומר (0.0)", topDay: "2025-05-20 (3.0)", bottomDay: "2025-05-18 (0.0)", percentAboveHour: 50.00, percentAbove2Hours: 25.00, percentAbove5Hours: 0.00, avgHoursPerCamera: 0.66, casesChangeFromT0: "-84 (-95.45%)", hoursChangeFromT0: "-106.06 (-96.38%)", casesChangeFromPrev: "-6 (-60.0%)", hoursChangeFromPrev: "-23.02 (-85.26%)"},
+            {store: "AMPM, תל אביב - זבוטינסקי", network: "AMPM", week: "שבוע 3", dateRange: "2025-05-22 - 2025-05-27", period: "T3", cases: 3, hours: 2.03, avgTime: 1.02, medianTime: 1.02, topCategory: "טיפוח שיער (2)", bottomCategory: "שימורים (1)", topDay: "2025-05-26 (2)", bottomDay: "2025-05-22 (1)", percentAboveHour: 100.00, percentAbove2Hours: 0.00, percentAbove5Hours: 0.00, avgHoursPerCamera: 0.34, casesChangeFromT0: "-85 (-96.59%)", hoursChangeFromT0: "-108.01 (-98.16%)", casesChangeFromPrev: "-1 (-25.0%)", hoursChangeFromPrev: "-1.95 (-48.99%)"},
+            {store: "AMPM, תל אביב - זבוטינסקי", network: "AMPM", week: "שבוע 4", dateRange: "2025-05-29 - 2025-06-03", period: "T4", cases: 5, hours: 8.02, avgTime: 2, medianTime: 1.5, topCategory: "מעדנים,גבינות לבנות (2)", bottomCategory: "דגים/בשר משומר (1)", topDay: "2025-05-29 (3)", bottomDay: "2025-06-02 (2)", percentAboveHour: 100.00, percentAbove2Hours: 50.00, percentAbove5Hours: 0.00, avgHoursPerCamera: 1.34, casesChangeFromT0: "-83 (-94.32%)", hoursChangeFromT0: "-102.02 (-92.71%)", casesChangeFromPrev: "2 (66.67%)", hoursChangeFromPrev: "5.99 (295.07%)"},
+            {store: "AMPM, תל אביב - זבוטינסקי", network: "AMPM", week: "שבוע 5", dateRange: "2025-06-05 - 2025-06-10", period: "T5", cases: 7, hours: 9.52, avgTime: 1.9, medianTime: 1, topCategory: "משקאות קלים (4)", bottomCategory: "טיפוח שיער (1)", topDay: "2025-06-10 (5)", bottomDay: "2025-06-09 (2)", percentAboveHour: 80.00, percentAbove2Hours: 20.00, percentAbove5Hours: 0.00, avgHoursPerCamera: 1.59, casesChangeFromT0: "-81 (-92.05%)", hoursChangeFromT0: "-100.52 (-91.35%)", casesChangeFromPrev: "2 (40.0%)", hoursChangeFromPrev: "1.5 (18.7%)"},
+            {store: "AMPM, תל אביב - זבוטינסקי", network: "AMPM", week: "שבוע 6", dateRange: "2025-06-12 - 2025-06-17", period: "T6", cases: 14, hours: 15.9, avgTime: 3.18, medianTime: 1.79, topCategory: "משקאות קלים (7)", bottomCategory: "מעדנים,גבינות לבנות (2)", topDay: "2025-06-15 (8)", bottomDay: "2025-06-12 (3)", percentAboveHour: 100.00, percentAbove2Hours: 40.00, percentAbove5Hours: 40.00, avgHoursPerCamera: 2.65, casesChangeFromT0: "-74 (-84.09%)", hoursChangeFromT0: "-94.14 (-85.55%)", casesChangeFromPrev: "7 (100.0%)", hoursChangeFromPrev: "6.38 (67.02%)"},
+            {store: "AMPM, תל אביב - זבוטינסקי", network: "AMPM", week: "שבוע 7", dateRange: "2025-06-19 - 2025-06-24", period: "T7", cases: 11, hours: 8.3, avgTime: 1.38, medianTime: 1, topCategory: "טיפוח שיער (7)", bottomCategory: "דגים/בשר משומר (1)", topDay: "2025-06-22 (8)", bottomDay: "2025-06-20 (1)", percentAboveHour: 83.33, percentAbove2Hours: 16.67, percentAbove5Hours: 0.00, avgHoursPerCamera: 1.38, casesChangeFromT0: "-77 (-87.5%)", hoursChangeFromT0: "-101.74 (-92.46%)", casesChangeFromPrev: "-3 (-21.43%)", hoursChangeFromPrev: "-7.6 (-47.8%)"},
+            {store: "AMPM, תל אביב - זבוטינסקי", network: "AMPM", week: "שבוע 8", dateRange: "2025-06-26 - 2025-07-01", period: "T8", cases: 2, hours: 4.73, avgTime: 2.37, medianTime: 2.37, topCategory: "טיפוח שיער (1)", bottomCategory: "טיפוח שיער (1)", topDay: "2025-06-29 (1)", bottomDay: "2025-06-29 (1)", percentAboveHour: 100.00, percentAbove2Hours: 50.00, percentAbove5Hours: 0.00, avgHoursPerCamera: 0.79, casesChangeFromT0: "-86 (-97.73%)", hoursChangeFromT0: "-105.31 (-95.7%)", casesChangeFromPrev: "-9 (-81.82%)", hoursChangeFromPrev: "-3.57 (-43.01%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 0", dateRange: "2025-04-06 - 2025-04-11", period: "T0", cases: 17, hours: 42.01, avgTime: 5.25, medianTime: 5.46, topCategory: "חטיפים מלוחים (10.0)", bottomCategory: "דיסות, תחליפי חלב אם (3.0)", topDay: "2025-04-06 (9.0)", bottomDay: "2025-04-10 (1.0)", percentAboveHour: 88.89, percentAbove2Hours: 77.78, percentAbove5Hours: 55.56, avgHoursPerCamera: 10.5, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 1", dateRange: "2025-04-13 - 2025-04-18", period: "T1", cases: 7, hours: 23.88, avgTime: 4.78, medianTime: 5, topCategory: "סלטים ארוזים (7)", bottomCategory: "סלטים ארוזים (7)", topDay: "2025-04-15 (2)", bottomDay: "2025-04-14 (1)", percentAboveHour: 100.00, percentAbove2Hours: 80.00, percentAbove5Hours: 60.00, avgHoursPerCamera: 5.97, casesChangeFromT0: "-10 (-58.82%)", hoursChangeFromT0: "-18.13 (-43.16%)", casesChangeFromPrev: "-10 (-58.82%)", hoursChangeFromPrev: "-18.13 (-43.16%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 2", dateRange: "2025-04-20 - 2025-04-25", period: "T2", cases: 63, hours: 69.43, avgTime: 5.34, medianTime: 6.05, topCategory: "תה וחליטות (17.0)", bottomCategory: "סלטים ארוזים (1.0)", topDay: "2025-04-24 (26.0)", bottomDay: "2025-04-25 (1.0)", percentAboveHour: 85.71, percentAbove2Hours: 71.43, percentAbove5Hours: 57.14, avgHoursPerCamera: 17.36, casesChangeFromT0: "46 (270.59%)", hoursChangeFromT0: "27.42 (65.27%)", casesChangeFromPrev: "56 (800.0%)", hoursChangeFromPrev: "45.55 (190.75%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 3", dateRange: "2025-04-27 - 2025-05-02", period: "T3", cases: 18, hours: 22.73, avgTime: 1.75, medianTime: 1.03, topCategory: "חטיפים מלוחים (8.0)", bottomCategory: "פסטה/קוסקוס/פתיתים (3.0)", topDay: "2025-04-27 (5.0)", bottomDay: "2025-05-02 (2.0)", percentAboveHour: 64.29, percentAbove2Hours: 14.29, percentAbove5Hours: 0.00, avgHoursPerCamera: 5.68, casesChangeFromT0: "1 (5.88%)", hoursChangeFromT0: "-19.28 (-45.89%)", casesChangeFromPrev: "-45 (-71.43%)", hoursChangeFromPrev: "-46.7 (-67.26%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 4", dateRange: "2025-05-04 - 2025-05-09", period: "T4", cases: 12, hours: 19, avgTime: 2.71, medianTime: 2.02, topCategory: "חטיפים מלוחים (10)", bottomCategory: "פסטה/קוסקוס/פתיתים (2)", topDay: "2025-05-08 (4)", bottomDay: "2025-05-04 (1)", percentAboveHour: 85.71, percentAbove2Hours: 57.14, percentAbove5Hours: 14.29, avgHoursPerCamera: 4.75, casesChangeFromT0: "-5 (-29.41%)", hoursChangeFromT0: "-23.01 (-54.77%)", casesChangeFromPrev: "-6 (-33.33%)", hoursChangeFromPrev: "-3.73 (-16.41%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 5", dateRange: "2025-05-11 - 2025-05-16", period: "T5", cases: 19, hours: 32.02, avgTime: 5.34, medianTime: 4.5, topCategory: "חטיפים מלוחים (18)", bottomCategory: "דיסות, תחליפי חלב אם (1)", topDay: "2025-05-15 (7)", bottomDay: "2025-05-13 (1)", percentAboveHour: 100.00, percentAbove2Hours: 100.00, percentAbove5Hours: 50.00, avgHoursPerCamera: 8, casesChangeFromT0: "2 (11.76%)", hoursChangeFromT0: "-9.99 (-23.78%)", casesChangeFromPrev: "7 (58.33%)", hoursChangeFromPrev: "13.02 (68.53%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 6", dateRange: "2025-05-18 - 2025-05-23", period: "T6", cases: 3, hours: 4.97, avgTime: 1.66, medianTime: 0.99, topCategory: "חטיפים מלוחים (2)", bottomCategory: "דיסות, תחליפי חלב אם (1)", topDay: "2025-05-23 (2)", bottomDay: "2025-05-21 (1)", percentAboveHour: 33.33, percentAbove2Hours: 33.33, percentAbove5Hours: 0.00, avgHoursPerCamera: 1.24, casesChangeFromT0: "-14 (-82.35%)", hoursChangeFromT0: "-37.04 (-88.17%)", casesChangeFromPrev: "-16 (-84.21%)", hoursChangeFromPrev: "-27.05 (-84.48%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 7", dateRange: "2025-05-25 - 2025-05-30", period: "T7", cases: 10, hours: 18.97, avgTime: 3.16, medianTime: 2.49, topCategory: "חטיפים מלוחים (7.0)", bottomCategory: "דיסות, תחליפי חלב אם (1.0)", topDay: "2025-05-29 (3.0)", bottomDay: "2025-05-27 (0.0)", percentAboveHour: 85.71, percentAbove2Hours: 57.14, percentAbove5Hours: 28.57, avgHoursPerCamera: 4.74, casesChangeFromT0: "-7 (-41.18%)", hoursChangeFromT0: "-23.04 (-54.84%)", casesChangeFromPrev: "7 (233.33%)", hoursChangeFromPrev: "14.0 (281.69%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 8", dateRange: "2025-06-01 - 2025-06-06", period: "T8", cases: 8, hours: 21.07, avgTime: 3.51, medianTime: 2.55, topCategory: "חטיפים מלוחים (4)", bottomCategory: "חטיפים מלוחים (4)", topDay: "2025-06-05 (4)", bottomDay: "2025-06-01 (1)", percentAboveHour: 100.00, percentAbove2Hours: 50.00, percentAbove5Hours: 16.67, avgHoursPerCamera: 5.27, casesChangeFromT0: "-9 (-52.94%)", hoursChangeFromT0: "-20.94 (-49.85%)", casesChangeFromPrev: "-2 (-20.0%)", hoursChangeFromPrev: "2.1 (11.07%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 9", dateRange: "2025-06-08 - 2025-06-13", period: "T9", cases: 17, hours: 16.92, avgTime: 2.82, medianTime: 2.54, topCategory: "חטיפים מלוחים (14)", bottomCategory: "פסטה/קוסקוס/פתיתים (1)", topDay: "2025-06-13 (11)", bottomDay: "2025-06-08 (1)", percentAboveHour: 100.00, percentAbove2Hours: 66.67, percentAbove5Hours: 16.67, avgHoursPerCamera: 4.23, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "-25.09 (-59.72%)", casesChangeFromPrev: "9 (112.5%)", hoursChangeFromPrev: "-4.15 (-19.7%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 10", dateRange: "2025-06-15 - 2025-06-20", period: "T10", cases: 14, hours: 27.26, avgTime: 3.89, medianTime: 3.98, topCategory: "חטיפים מלוחים (11)", bottomCategory: "פסטה/קוסקוס/פתיתים (1)", topDay: "2025-06-18 (7)", bottomDay: "2025-06-17 (1)", percentAboveHour: 100.00, percentAbove2Hours: 71.43, percentAbove5Hours: 28.57, avgHoursPerCamera: 6.82, casesChangeFromT0: "-3 (-17.65%)", hoursChangeFromT0: "-14.75 (-35.11%)", casesChangeFromPrev: "-3 (-17.65%)", hoursChangeFromPrev: "10.34 (61.11%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 11", dateRange: "2025-06-22 - 2025-06-27", period: "T11", cases: 40, hours: 58.91, avgTime: 3.93, medianTime: 3.01, topCategory: "חטיפים מלוחים (24.0)", bottomCategory: "דיסות, תחליפי חלב אם (2.0)", topDay: "2025-06-25 (17.0)", bottomDay: "2025-06-27 (1.0)", percentAboveHour: 70.59, percentAbove2Hours: 58.82, percentAbove5Hours: 35.29, avgHoursPerCamera: 14.73, casesChangeFromT0: "23 (135.29%)", hoursChangeFromT0: "16.9 (40.23%)", casesChangeFromPrev: "26 (185.71%)", hoursChangeFromPrev: "31.65 (116.1%)"},
+            {store: "יוחננוף, מיפואח - רחובות", network: "יוחננוף", week: "שבוע 12", dateRange: "2025-06-29 - 2025-07-04", period: "T12", cases: 7, hours: 15.01, avgTime: 3.75, medianTime: 3.01, topCategory: "סלטים ארוזים (6)", bottomCategory: "דיסות, תחליפי חלב אם (1)", topDay: "2025-06-29 (3)", bottomDay: "2025-07-01 (1)", percentAboveHour: 100.00, percentAbove2Hours: 75.00, percentAbove5Hours: 25.00, avgHoursPerCamera: 3.75, casesChangeFromT0: "-10 (-58.82%)", hoursChangeFromT0: "-27.0 (-64.27%)", casesChangeFromPrev: "-33 (-82.5%)", hoursChangeFromPrev: "-43.9 (-74.52%)"},
+            {store: "AMPM, עליית הנוער", network: "AMPM", week: "שבוע 0", dateRange: "2025-05-01 - 2025-05-06", period: "T0", cases: 75, hours: 119.23, avgTime: 5.68, medianTime: 5.05, topCategory: "נקניקיות, פסטרמות ונקניקים (24.0)", bottomCategory: "תה וחליטות (0.0)", topDay: "2025-05-01 (23.0)", bottomDay: "2025-05-06 (6.0)", percentAboveHour: 77.78, percentAbove2Hours: 62.96, percentAbove5Hours: 51.85, avgHoursPerCamera: 17.03, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "AMPM, עליית הנוער", network: "AMPM", week: "שבוע 1", dateRange: "2025-05-08 - 2025-05-13", period: "T1", cases: 38, hours: 99.73, avgTime: 4.75, medianTime: 4.03, topCategory: "דגים/בשר משומר (11)", bottomCategory: "נקניקיות, פסטרמות ונקניקים (8)", topDay: "2025-05-11 (10)", bottomDay: "2025-05-08 (4)", percentAboveHour: 85.71, percentAbove2Hours: 66.67, percentAbove5Hours: 42.86, avgHoursPerCamera: 14.25, casesChangeFromT0: "-37 (-49.33%)", hoursChangeFromT0: "-19.5 (-16.35%)", casesChangeFromPrev: "-37 (-49.33%)", hoursChangeFromPrev: "-19.5 (-16.35%)"},
+            {store: "AMPM, עליית הנוער", network: "AMPM", week: "שבוע 2", dateRange: "2025-05-15 - 2025-05-20", period: "T2", cases: 24, hours: 92.87, avgTime: 5.8, medianTime: 6.54, topCategory: "נקניקיות, פסטרמות ונקניקים (7.0)", bottomCategory: "אורז קטניות (0.0)", topDay: "2025-05-18 (8.0)", bottomDay: "2025-05-15 (0.0)", percentAboveHour: 66.67, percentAbove2Hours: 61.90, percentAbove5Hours: 47.62, avgHoursPerCamera: 13.27, casesChangeFromT0: "-51 (-68.0%)", hoursChangeFromT0: "-26.36 (-22.11%)", casesChangeFromPrev: "-14 (-36.84%)", hoursChangeFromPrev: "-6.86 (-6.88%)"},
+            {store: "AMPM, עליית הנוער", network: "AMPM", week: "שבוע 3", dateRange: "2025-05-22 - 2025-05-27", period: "T3", cases: 56, hours: 90.07, avgTime: 5, medianTime: 4.28, topCategory: "דגים/בשר משומר (29)", bottomCategory: "טיפוח שיער (2)", topDay: "2025-05-22 (13)", bottomDay: "2025-05-23 (10)", percentAboveHour: 94.44, percentAbove2Hours: 61.11, percentAbove5Hours: 44.44, avgHoursPerCamera: 12.87, casesChangeFromT0: "-19 (-25.33%)", hoursChangeFromT0: "-29.16 (-24.46%)", casesChangeFromPrev: "32 (133.33%)", hoursChangeFromPrev: "-2.8 (-3.01%)"},
+            {store: "AMPM, עליית הנוער", network: "AMPM", week: "שבוע 4", dateRange: "2025-05-29 - 2025-06-03", period: "T4", cases: 62, hours: 128.5, avgTime: 6.42, medianTime: 7.11, topCategory: "נקניקיות, פסטרמות ונקניקים (18)", bottomCategory: "תה וחליטות (4)", topDay: "2025-06-02 (23)", bottomDay: "2025-05-30 (1)", percentAboveHour: 90.00, percentAbove2Hours: 90.00, percentAbove5Hours: 70.00, avgHoursPerCamera: 18.36, casesChangeFromT0: "-13 (-17.33%)", hoursChangeFromT0: "9.27 (7.77%)", casesChangeFromPrev: "6 (10.71%)", hoursChangeFromPrev: "38.43 (42.67%)"},
+            {store: "AMPM, עליית הנוער", network: "AMPM", week: "שבוע 5", dateRange: "2025-06-05 - 2025-06-10", period: "T5", cases: 39, hours: 64.24, avgTime: 5.84, medianTime: 5.49, topCategory: "דגים/בשר משומר (16)", bottomCategory: "מעדנים,גבינות לבנות (1)", topDay: "2025-06-09 (16)", bottomDay: "2025-06-08 (4)", percentAboveHour: 100.00, percentAbove2Hours: 81.82, percentAbove5Hours: 63.64, avgHoursPerCamera: 9.18, casesChangeFromT0: "-36 (-48.0%)", hoursChangeFromT0: "-54.99 (-46.12%)", casesChangeFromPrev: "-23 (-37.1%)", hoursChangeFromPrev: "-64.26 (-50.01%)"},
+            {store: "AMPM, עליית הנוער", network: "AMPM", week: "שבוע 6", dateRange: "2025-06-12 - 2025-06-17", period: "T6", cases: 70, hours: 81.43, avgTime: 5.09, medianTime: 3.99, topCategory: "נקניקיות, פסטרמות ונקניקים (34)", bottomCategory: "טיפוח שיער (1)", topDay: "2025-06-15 (26)", bottomDay: "2025-06-12 (5)", percentAboveHour: 87.50, percentAbove2Hours: 75.00, percentAbove5Hours: 50.00, avgHoursPerCamera: 11.63, casesChangeFromT0: "-5 (-6.67%)", hoursChangeFromT0: "-37.8 (-31.7%)", casesChangeFromPrev: "31 (79.49%)", hoursChangeFromPrev: "17.19 (26.76%)"},
+            {store: "AMPM, עליית הנוער", network: "AMPM", week: "שבוע 7", dateRange: "2025-06-19 - 2025-06-24", period: "T7", cases: 40, hours: 53.97, avgTime: 3.6, medianTime: 1.45, topCategory: "דגים/בשר משומר (18)", bottomCategory: "תה וחליטות (1)", topDay: "2025-06-22 (17)", bottomDay: "2025-06-23 (3)", percentAboveHour: 93.33, percentAbove2Hours: 46.67, percentAbove5Hours: 33.33, avgHoursPerCamera: 7.71, casesChangeFromT0: "-35 (-46.67%)", hoursChangeFromT0: "-65.26 (-54.73%)", casesChangeFromPrev: "-30 (-42.86%)", hoursChangeFromPrev: "-27.46 (-33.72%)"},
+            {store: "AMPM, עליית הנוער", network: "AMPM", week: "שבוע 8", dateRange: "2025-06-26 - 2025-07-01", period: "T8", cases: 129, hours: 55.36, avgTime: 4.26, medianTime: 3, topCategory: "מעדנים,גבינות לבנות (42)", bottomCategory: "טיפוח שיער (2)", topDay: "2025-07-01 (114)", bottomDay: "2025-06-27 (1)", percentAboveHour: 92.31, percentAbove2Hours: 53.85, percentAbove5Hours: 38.46, avgHoursPerCamera: 7.91, casesChangeFromT0: "54 (72.0%)", hoursChangeFromT0: "-63.87 (-53.57%)", casesChangeFromPrev: "89 (222.5%)", hoursChangeFromPrev: "1.39 (2.58%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 0", dateRange: "2025-02-11 - 2025-02-16", period: "T0", cases: 24, hours: 70.66, avgTime: 6.42, medianTime: 5.32, topCategory: "יינות, משקאות חריפים (13.0)", bottomCategory: "דגנים וחטיפי דגנים, ללא סוכר (0.0)", topDay: "2025-02-16 (8.0)", bottomDay: "2025-02-14 (3.0)", percentAboveHour: 44.00, percentAbove2Hours: 44.00, percentAbove5Hours: 32.00, avgHoursPerCamera: 7.85, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 1", dateRange: "2025-02-18 - 2025-02-23", period: "T1", cases: 37, hours: 71.76, avgTime: 4.48, medianTime: 5.01, topCategory: "דגנים וחטיפי דגנים, ללא סוכר (14.0)", bottomCategory: "דגנים וחטיפי דגנים (1.0)", topDay: "2025-02-23 (16.0)", bottomDay: "2025-02-18 (4.0)", percentAboveHour: 82.35, percentAbove2Hours: 58.82, percentAbove5Hours: 52.94, avgHoursPerCamera: 7.97, casesChangeFromT0: "13 (54.17%)", hoursChangeFromT0: "1.1 (1.56%)", casesChangeFromPrev: "13 (54.17%)", hoursChangeFromPrev: "1.1 (1.56%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 2", dateRange: "2025-02-25 - 2025-03-02", period: "T2", cases: 26, hours: 52.28, avgTime: 4.02, medianTime: 4.01, topCategory: "משקאות קלים (8.0)", bottomCategory: "רטבים ותוספות, אורז/קטניות, שמנים (1.0)", topDay: "2025-02-25 (12.0)", bottomDay: "2025-02-26 (2.0)", percentAboveHour: 66.67, percentAbove2Hours: 55.56, percentAbove5Hours: 27.78, avgHoursPerCamera: 5.81, casesChangeFromT0: "2 (8.33%)", hoursChangeFromT0: "-18.38 (-26.01%)", casesChangeFromPrev: "-11 (-29.73%)", hoursChangeFromPrev: "-19.48 (-27.15%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 3", dateRange: "2025-03-04 - 2025-03-09", period: "T3", cases: 32, hours: 43.11, avgTime: 2.69, medianTime: 2, topCategory: "חטיפים מלוחים (13.0)", bottomCategory: "דגנים וחטיפי דגנים (1.0)", topDay: "2025-03-06 (13.0)", bottomDay: "2025-03-05 (2.0)", percentAboveHour: 60.87, percentAbove2Hours: 34.78, percentAbove5Hours: 8.70, avgHoursPerCamera: 4.79, casesChangeFromT0: "8 (33.33%)", hoursChangeFromT0: "-27.55 (-38.99%)", casesChangeFromPrev: "6 (23.08%)", hoursChangeFromPrev: "-9.17 (-17.54%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 4", dateRange: "2025-03-11 - 2025-03-16", period: "T4", cases: 72, hours: 124.79, avgTime: 4.46, medianTime: 3.02, topCategory: "חטיפים מלוחים (20)", bottomCategory: "רטבים ותוספות, אורז/קטניות, שמנים (3)", topDay: "2025-03-16 (33)", bottomDay: "2025-03-14 (7)", percentAboveHour: 100.00, percentAbove2Hours: 75.00, percentAbove5Hours: 42.86, avgHoursPerCamera: 13.87, casesChangeFromT0: "48 (200.0%)", hoursChangeFromT0: "54.13 (76.61%)", casesChangeFromPrev: "40 (125.0%)", hoursChangeFromPrev: "81.68 (189.47%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 5", dateRange: "2025-03-18 - 2025-03-23", period: "T5", cases: 182, hours: 166.97, avgTime: 5.96, medianTime: 6.48, topCategory: "דגנים וחטיפי דגנים, ללא סוכר (72.0)", bottomCategory: "פסטה/קוסקוס/פתיתים (3.0)", topDay: "2025-03-19 (50.0)", bottomDay: "2025-03-18 (25.0)", percentAboveHour: 87.10, percentAbove2Hours: 83.87, percentAbove5Hours: 61.29, avgHoursPerCamera: 18.55, casesChangeFromT0: "158 (658.33%)", hoursChangeFromT0: "96.31 (136.3%)", casesChangeFromPrev: "110 (152.78%)", hoursChangeFromPrev: "42.18 (33.8%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 6", dateRange: "2025-03-25 - 2025-03-30", period: "T6", cases: 153, hours: 158.7, avgTime: 6.35, medianTime: 7.93, topCategory: "דגנים וחטיפי דגנים, ללא סוכר (49)", bottomCategory: "פסטה/קוסקוס/פתיתים (2)", topDay: "2025-03-28 (41)", bottomDay: "2025-03-30 (19)", percentAboveHour: 96.00, percentAbove2Hours: 88.00, percentAbove5Hours: 76.00, avgHoursPerCamera: 17.63, casesChangeFromT0: "129 (537.5%)", hoursChangeFromT0: "88.04 (124.6%)", casesChangeFromPrev: "-29 (-15.93%)", hoursChangeFromPrev: "-8.27 (-4.95%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 7", dateRange: "2025-04-01 - 2025-04-06", period: "T7", cases: 89, hours: 92.33, avgTime: 4.2, medianTime: 4.04, topCategory: "משקאות קלים (40.0)", bottomCategory: "פסטה/קוסקוס/פתיתים (0.0)", topDay: "2025-04-04 (36.0)", bottomDay: "2025-04-01 (12.0)", percentAboveHour: 77.78, percentAbove2Hours: 59.26, percentAbove5Hours: 40.74, avgHoursPerCamera: 10.26, casesChangeFromT0: "65 (270.83%)", hoursChangeFromT0: "21.67 (30.67%)", casesChangeFromPrev: "-64 (-41.83%)", hoursChangeFromPrev: "-66.37 (-41.82%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 8", dateRange: "2025-04-08 - 2025-04-13", period: "T8", cases: 48, hours: 111.45, avgTime: 6.56, medianTime: 7.96, topCategory: "חטיפים מלוחים (19.0)", bottomCategory: "פסטה/קוסקוס/פתיתים (4.0)", topDay: "2025-04-10 (15.0)", bottomDay: "2025-04-08 (9.0)", percentAboveHour: 89.47, percentAbove2Hours: 84.21, percentAbove5Hours: 68.42, avgHoursPerCamera: 12.38, casesChangeFromT0: "24 (100.0%)", hoursChangeFromT0: "40.79 (57.73%)", casesChangeFromPrev: "-41 (-46.07%)", hoursChangeFromPrev: "19.12 (20.71%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 9", dateRange: "2025-04-15 - 2025-04-20", period: "T9", cases: 113, hours: 78.39, avgTime: 7.13, medianTime: 8.99, topCategory: "חטיפים מלוחים (84)", bottomCategory: "דגנים וחטיפי דגנים, ללא סוכר (2)", topDay: "2025-04-20 (54)", bottomDay: "2025-04-15 (11)", percentAboveHour: 100.00, percentAbove2Hours: 90.91, percentAbove5Hours: 72.73, avgHoursPerCamera: 8.71, casesChangeFromT0: "89 (370.83%)", hoursChangeFromT0: "7.73 (10.94%)", casesChangeFromPrev: "65 (135.42%)", hoursChangeFromPrev: "-33.06 (-29.66%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 10", dateRange: "2025-04-22 - 2025-04-27", period: "T10", cases: 119, hours: 142.26, avgTime: 5.08, medianTime: 5.02, topCategory: "משקאות קלים (44.0)", bottomCategory: "רטבים ותוספות, אורז/קטניות, שמנים (4.0)", topDay: "2025-04-24 (26.0)", bottomDay: "2025-04-27 (21.0)", percentAboveHour: 86.67, percentAbove2Hours: 63.33, percentAbove5Hours: 46.67, avgHoursPerCamera: 15.81, casesChangeFromT0: "95 (395.83%)", hoursChangeFromT0: "71.6 (101.33%)", casesChangeFromPrev: "6 (5.31%)", hoursChangeFromPrev: "63.87 (81.48%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 11", dateRange: "2025-04-29 - 2025-05-04", period: "T11", cases: 145, hours: 117.83, avgTime: 5.36, medianTime: 6.14, topCategory: "משקאות קלים (78)", bottomCategory: "פסטה/קוסקוס/פתיתים (2)", topDay: "2025-05-02 (45)", bottomDay: "2025-04-29 (24)", percentAboveHour: 90.91, percentAbove2Hours: 81.82, percentAbove5Hours: 50.00, avgHoursPerCamera: 13.09, casesChangeFromT0: "121 (504.17%)", hoursChangeFromT0: "47.17 (66.76%)", casesChangeFromPrev: "26 (21.85%)", hoursChangeFromPrev: "-24.43 (-17.17%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 12", dateRange: "2025-05-06 - 2025-05-11", period: "T12", cases: 104, hours: 84.66, avgTime: 3.14, medianTime: 2.03, topCategory: "משקאות קלים (56)", bottomCategory: "שימורים (1)", topDay: "2025-05-06 (29)", bottomDay: "2025-05-11 (10)", percentAboveHour: 92.59, percentAbove2Hours: 59.26, percentAbove5Hours: 22.22, avgHoursPerCamera: 9.41, casesChangeFromT0: "80 (333.33%)", hoursChangeFromT0: "14.0 (19.81%)", casesChangeFromPrev: "-41 (-28.28%)", hoursChangeFromPrev: "-33.17 (-28.15%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 13", dateRange: "2025-05-13 - 2025-05-18", period: "T13", cases: 49, hours: 66.15, avgTime: 3.67, medianTime: 4.05, topCategory: "יינות, משקאות חריפים (14)", bottomCategory: "פסטה/קוסקוס/פתיתים (2)", topDay: "2025-05-14 (18)", bottomDay: "2025-05-15 (6)", percentAboveHour: 88.89, percentAbove2Hours: 72.22, percentAbove5Hours: 33.33, avgHoursPerCamera: 7.35, casesChangeFromT0: "25 (104.17%)", hoursChangeFromT0: "-4.51 (-6.38%)", casesChangeFromPrev: "-55 (-52.88%)", hoursChangeFromPrev: "-18.51 (-21.86%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 14", dateRange: "2025-05-20 - 2025-05-25", period: "T14", cases: 26, hours: 35.94, avgTime: 2.25, medianTime: 1.98, topCategory: "דגנים וחטיפי דגנים, ללא סוכר (11)", bottomCategory: "רטבים ותוספות, אורז/קטניות, שמנים (1)", topDay: "2025-05-20 (12)", bottomDay: "2025-05-25 (1)", percentAboveHour: 87.50, percentAbove2Hours: 43.75, percentAbove5Hours: 6.25, avgHoursPerCamera: 3.99, casesChangeFromT0: "2 (8.33%)", hoursChangeFromT0: "-34.72 (-49.14%)", casesChangeFromPrev: "-23 (-46.94%)", hoursChangeFromPrev: "-30.21 (-45.67%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 15", dateRange: "2025-05-27 - 2025-06-01", period: "T15", cases: 33, hours: 47.79, avgTime: 3.19, medianTime: 2.04, topCategory: "רטבים ותוספות, אורז/קטניות, שמנים (9)", bottomCategory: "פסטה/קוסקוס/פתיתים (1)", topDay: "2025-05-29 (11)", bottomDay: "2025-05-27 (1)", percentAboveHour: 100.00, percentAbove2Hours: 60.00, percentAbove5Hours: 20.00, avgHoursPerCamera: 5.31, casesChangeFromT0: "9 (37.5%)", hoursChangeFromT0: "-22.87 (-32.37%)", casesChangeFromPrev: "7 (26.92%)", hoursChangeFromPrev: "11.85 (32.97%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 16", dateRange: "2025-06-03 - 2025-06-08", period: "T16", cases: 25, hours: 58.93, avgTime: 3.47, medianTime: 2.03, topCategory: "דגנים וחטיפי דגנים, ללא סוכר (11.0)", bottomCategory: "רטבים ותוספות, אורז/קטניות, שמנים (1.0)", topDay: "2025-06-05 (8.0)", bottomDay: "2025-06-03 (3.0)", percentAboveHour: 88.89, percentAbove2Hours: 55.56, percentAbove5Hours: 22.22, avgHoursPerCamera: 6.55, casesChangeFromT0: "1 (4.17%)", hoursChangeFromT0: "-11.73 (-16.6%)", casesChangeFromPrev: "-8 (-24.24%)", hoursChangeFromPrev: "11.14 (23.31%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 17", dateRange: "2025-06-10 - 2025-06-15", period: "T17", cases: 66, hours: 79.24, avgTime: 3.45, medianTime: 2.05, topCategory: "דגנים וחטיפי דגנים, ללא סוכר (34.0)", bottomCategory: "פסטה/קוסקוס/פתיתים (1.0)", topDay: "2025-06-13 (25.0)", bottomDay: "2025-06-11 (6.0)", percentAboveHour: 76.92, percentAbove2Hours: 46.15, percentAbove5Hours: 26.92, avgHoursPerCamera: 8.8, casesChangeFromT0: "42 (175.0%)", hoursChangeFromT0: "8.58 (12.14%)", casesChangeFromPrev: "41 (164.0%)", hoursChangeFromPrev: "20.31 (34.46%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 18", dateRange: "2025-06-17 - 2025-06-22", period: "T18", cases: 67, hours: 100.73, avgTime: 4.03, medianTime: 3.99, topCategory: "דגנים וחטיפי דגנים, ללא סוכר (23.0)", bottomCategory: "פסטה/קוסקוס/פתיתים (1.0)", topDay: "2025-06-19 (20.0)", bottomDay: "2025-06-22 (9.0)", percentAboveHour: 96.15, percentAbove2Hours: 80.77, percentAbove5Hours: 30.77, avgHoursPerCamera: 11.19, casesChangeFromT0: "43 (179.17%)", hoursChangeFromT0: "30.07 (42.56%)", casesChangeFromPrev: "1 (1.52%)", hoursChangeFromPrev: "21.49 (27.12%)"},
+            {store: "קרפור, גני אביב", network: "קרפור", week: "שבוע 19", dateRange: "2025-06-24 - 2025-06-29", period: "T19", cases: 33, hours: 62.35, avgTime: 3.9, medianTime: 3, topCategory: "יינות, משקאות חריפים (12)", bottomCategory: "חטיפים מלוחים (1)", topDay: "2025-06-24 (13)", bottomDay: "2025-06-27 (3)", percentAboveHour: 87.50, percentAbove2Hours: 68.75, percentAbove5Hours: 37.50, avgHoursPerCamera: 6.93, casesChangeFromT0: "9 (37.5%)", hoursChangeFromT0: "-8.31 (-11.76%)", casesChangeFromPrev: "-34 (-50.75%)", hoursChangeFromPrev: "-38.38 (-38.1%)"},
+            {store: "סופר ספיר, אשדוד", network: "סופר ספיר", week: "שבוע 0", dateRange: "2025-04-25 - 2025-04-30", period: "T0", cases: 84, hours: 167.97, avgTime: 5.79, medianTime: 5.04, topCategory: "דיסות, תחליפי חלב אם (21)", bottomCategory: "מרקים/תבשילים (6)", topDay: "2025-04-27 (24)", bottomDay: "2025-04-29 (9)", percentAboveHour: 86.21, percentAbove2Hours: 82.76, percentAbove5Hours: 55.17, avgHoursPerCamera: 16.8, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "סופר ספיר, אשדוד", network: "סופר ספיר", week: "שבוע 1", dateRange: "2025-05-02 - 2025-05-07", period: "T1", cases: 104, hours: 146.1, avgTime: 5.04, medianTime: 4.96, topCategory: "משקאות קלים (36)", bottomCategory: "מרקים/תבשילים (3)", topDay: "2025-05-02 (29)", bottomDay: "2025-05-06 (14)", percentAboveHour: 89.66, percentAbove2Hours: 86.21, percentAbove5Hours: 44.83, avgHoursPerCamera: 14.61, casesChangeFromT0: "20 (23.81%)", hoursChangeFromT0: "-21.87 (-13.02%)", casesChangeFromPrev: "20 (23.81%)", hoursChangeFromPrev: "-21.87 (-13.02%)"},
+            {store: "סופר ספיר, אשדוד", network: "סופר ספיר", week: "שבוע 2", dateRange: "2025-05-09 - 2025-05-14", period: "T2", cases: 48, hours: 96.82, avgTime: 4.4, medianTime: 3.99, topCategory: "משקאות קלים (14.0)", bottomCategory: "ניקוי הבית, שטיפת כלים (1.0)", topDay: "2025-05-12 (15.0)", bottomDay: "2025-05-13 (5.0)", percentAboveHour: 91.30, percentAbove2Hours: 78.26, percentAbove5Hours: 30.43, avgHoursPerCamera: 9.68, casesChangeFromT0: "-36 (-42.86%)", hoursChangeFromT0: "-71.15 (-42.36%)", casesChangeFromPrev: "-56 (-53.85%)", hoursChangeFromPrev: "-49.28 (-33.73%)"},
+            {store: "סופר ספיר, אשדוד", network: "סופר ספיר", week: "שבוע 3", dateRange: "2025-05-16 - 2025-05-21", period: "T3", cases: 27, hours: 61.97, avgTime: 5.16, medianTime: 5, topCategory: "סלטים ארוזים (11)", bottomCategory: "עוגות מוכנות, אפיה ובישול (1)", topDay: "2025-05-18 (11)", bottomDay: "2025-05-16 (3)", percentAboveHour: 83.33, percentAbove2Hours: 83.33, percentAbove5Hours: 50.00, avgHoursPerCamera: 6.2, casesChangeFromT0: "-57 (-67.86%)", hoursChangeFromT0: "-106.0 (-63.11%)", casesChangeFromPrev: "-21 (-43.75%)", hoursChangeFromPrev: "-34.85 (-35.99%)"},
+            {store: "סופר ספיר, אשדוד", network: "סופר ספיר", week: "שבוע 4", dateRange: "2025-05-23 - 2025-05-28", period: "T4", cases: 27, hours: 44.92, avgTime: 2.25, medianTime: 2, topCategory: "סלטים ארוזים (11.0)", bottomCategory: "ניקוי הבית, שטיפת כלים (1.0)", topDay: "2025-05-28 (10.0)", bottomDay: "2025-05-26 (3.0)", percentAboveHour: 68.00, percentAbove2Hours: 40.00, percentAbove5Hours: 4.00, avgHoursPerCamera: 4.49, casesChangeFromT0: "-57 (-67.86%)", hoursChangeFromT0: "-123.05 (-73.26%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "-17.05 (-27.51%)"},
+            {store: "סופר ספיר, אשדוד", network: "סופר ספיר", week: "שבוע 5", dateRange: "2025-05-30 - 2025-06-04", period: "T5", cases: 60, hours: 82.22, avgTime: 3.29, medianTime: 3, topCategory: "משקאות קלים (23.0)", bottomCategory: "חטיפים מלוחים (1.0)", topDay: "2025-06-01 (21.0)", bottomDay: "2025-06-04 (5.0)", percentAboveHour: 81.48, percentAbove2Hours: 62.96, percentAbove5Hours: 18.52, avgHoursPerCamera: 8.22, casesChangeFromT0: "-24 (-28.57%)", hoursChangeFromT0: "-85.75 (-51.05%)", casesChangeFromPrev: "33 (122.22%)", hoursChangeFromPrev: "37.3 (83.04%)"},
+            {store: "סופר ספיר, אשדוד", network: "סופר ספיר", week: "שבוע 6", dateRange: "2025-06-06 - 2025-06-11", period: "T6", cases: 63, hours: 66.89, avgTime: 4.18, medianTime: 4, topCategory: "דיסות, תחליפי חלב אם (37.0)", bottomCategory: "תה וחליטות (0.0)", topDay: "2025-06-10 (18.0)", bottomDay: "2025-06-09 (8.0)", percentAboveHour: 76.47, percentAbove2Hours: 52.94, percentAbove5Hours: 35.29, avgHoursPerCamera: 6.69, casesChangeFromT0: "-21 (-25.0%)", hoursChangeFromT0: "-101.08 (-60.18%)", casesChangeFromPrev: "3 (5.0%)", hoursChangeFromPrev: "-15.33 (-18.65%)"},
+            {store: "סופר ספיר, אשדוד", network: "סופר ספיר", week: "שבוע 7", dateRange: "2025-06-13 - 2025-06-18", period: "T7", cases: 43, hours: 68.51, avgTime: 3.26, medianTime: 2.98, topCategory: "דיסות, תחליפי חלב אם (14.0)", bottomCategory: "תה וחליטות (1.0)", topDay: "2025-06-13 (15.0)", bottomDay: "2025-06-15 (3.0)", percentAboveHour: 77.27, percentAbove2Hours: 50.00, percentAbove5Hours: 27.27, avgHoursPerCamera: 6.85, casesChangeFromT0: "-41 (-48.81%)", hoursChangeFromT0: "-99.46 (-59.21%)", casesChangeFromPrev: "-20 (-31.75%)", hoursChangeFromPrev: "1.62 (2.42%)"},
+            {store: "סופר ספיר, אשדוד", network: "סופר ספיר", week: "שבוע 8", dateRange: "2025-06-20 - 2025-06-25", period: "T8", cases: 36, hours: 55.63, avgTime: 2.53, medianTime: 1.8, topCategory: "משקאות קלים (8)", bottomCategory: "עוגות מוכנות, אפיה ובישול (1)", topDay: "2025-06-20 (18)", bottomDay: "2025-06-24 (1)", percentAboveHour: 95.45, percentAbove2Hours: 45.45, percentAbove5Hours: 18.18, avgHoursPerCamera: 5.56, casesChangeFromT0: "-48 (-57.14%)", hoursChangeFromT0: "-112.34 (-66.88%)", casesChangeFromPrev: "-7 (-16.28%)", hoursChangeFromPrev: "-12.88 (-18.8%)"},
+            {store: "סופר ספיר, אשדוד", network: "סופר ספיר", week: "שבוע 9", dateRange: "2025-06-27 - 2025-07-02", period: "T9", cases: 21, hours: 48.97, avgTime: 3.77, medianTime: 3, topCategory: "משקאות קלים (13.0)", bottomCategory: "חטיפים מלוחים (2.0)", topDay: "2025-06-27 (9.0)", bottomDay: "2025-07-02 (0.0)", percentAboveHour: 81.25, percentAbove2Hours: 56.25, percentAbove5Hours: 18.75, avgHoursPerCamera: 4.9, casesChangeFromT0: "-63 (-75.0%)", hoursChangeFromT0: "-119.0 (-70.85%)", casesChangeFromPrev: "-15 (-41.67%)", hoursChangeFromPrev: "-6.66 (-11.97%)"},
+            {store: "AMPM, תל אביב - נורדאו", network: "AMPM", week: "שבוע 0", dateRange: "2025-05-01 - 2025-05-06", period: "T0", cases: 182, hours: 234.18, avgTime: 6.69, medianTime: 8.94, topCategory: "קרקרים/אובלטים (63.0)", bottomCategory: "דגנים וחטיפי דגנים (2.0)", topDay: "2025-05-05 (53.0)", bottomDay: "2025-05-02 (15.0)", percentAboveHour: 87.18, percentAbove2Hours: 79.49, percentAbove5Hours: 69.23, avgHoursPerCamera: 23.42, casesChangeFromT0: "0 (0.0%)", hoursChangeFromT0: "0.0 (0.0%)", casesChangeFromPrev: "0 (0.0%)", hoursChangeFromPrev: "0.0 (0.0%)"},
+            {store: "AMPM, תל אביב - נורדאו", network: "AMPM", week: "שבוע 1", dateRange: "2025-05-08 - 2025-05-13", period: "T1", cases: 86, hours: 189, avgTime: 5.4, medianTime: 5.06, topCategory: "קרקרים/אובלטים (21)", bottomCategory: "פסטה/קוסקוס/פתיתים (3)", topDay: "2025-05-12 (27)", bottomDay: "2025-05-09 (7)", percentAboveHour: 100.00, percentAbove2Hours: 82.86, percentAbove5Hours: 60.00, avgHoursPerCamera: 18.9, casesChangeFromT0: "-96 (-52.75%)", hoursChangeFromT0: "-45.18 (-19.29%)", casesChangeFromPrev: "-96 (-52.75%)", hoursChangeFromPrev: "-45.18 (-19.29%)"},
+            {store: "AMPM, תל אביב - נורדאו", network: "AMPM", week: "שבוע 2", dateRange: "2025-05-15 - 2025-05-20", period: "T2", cases: 72, hours: 148.55, avgTime: 5.71, medianTime: 5.95, topCategory: "קרקרים/אובלטים (33.0)", bottomCategory: "טיפוח שיער (3.0)", topDay: "2025-05-18 (27.0)", bottomDay: "2025-05-16 (9.0)", percentAboveHour: 92.86, percentAbove2Hours: 78.57, percentAbove5Hours: 64.29, avgHoursPerCamera: 14.86, casesChangeFromT0: "-110 (-60.44%)", hoursChangeFromT0: "-85.63 (-36.57%)", casesChangeFromPrev: "-14 (-16.28%)", hoursChangeFromPrev: "-40.45 (-21.4%)"},
+            {store: "AMPM, תל אביב - נורדאו", network: "AMPM", week: "שבוע 3", dateRange: "2025-05-22 - 2025-05-27", period: "T3", cases: 50, hours: 60.2, avgTime: 3.54, medianTime: 2.06, topCategory: "קרקרים/אובלטים (29)", bottomCategory: "נקניקיות, פסטרמות ונקניקים (1)", topDay: "2025-05-26 (15)", bottomDay: "2025-05-23 (2)", percentAboveHour: 94.12, percentAbove2Hours: 58.82, percentAbove5Hours: 29.41, avgHoursPerCamera: 6.02, casesChangeFromT0: "-132 (-72.53%)", hoursChangeFromT0: "-173.98 (-74.29%)", casesChangeFromPrev: "-22 (-30.56%)", hoursChangeFromPrev: "-88.35 (-59.47%)"},
+            {store: "AMPM, תל אביב - נורדאו", network: "AMPM", week: "שבוע 4", dateRange: "2025-05-29 - 2025-06-03", period: "T4", cases: 96, hours: 151.82, avgTime: 4.9, medianTime: 5, topCategory: "קרקרים/אובלטים (42)", bottomCategory: "דגנים וחטיפי דגנים (3)", topDay: "2025-06-03 (29)", bottomDay: "2025-05-29 (6)", percentAboveHour: 93.55, percentAbove2Hours: 87.10, percentAbove5Hours: 51.61, avgHoursPerCamera: 15.18, casesChangeFromT0: "-86 (-47.25%)", hoursChangeFromT0: "-82.36 (-35.17%)", casesChangeFromPrev: "46 (92.0%)", hoursChangeFromPrev: "91.62 (152.19%)"},
+            {store: "AMPM, תל אביב - נורדאו", network: "AMPM", week: "שבוע 5", dateRange: "2025-06-05 - 2025-06-10", period: "T5", cases: 85, hours: 92.62, avgTime: 3.7, medianTime: 2.98, topCategory: "קרקרים/אובלטים (47.0)", bottomCategory: "פסטה/קוסקוס/פתיתים (1.0)", topDay: "2025-06-08 (33.0)", bottomDay: "2025-06-06 (5.0)", percentAboveHour: 92.31, percentAbove2Hours: 57.69, percentAbove5Hours: 26.92, avgHoursPerCamera: 9.26, casesChangeFromT0: "-97 (-53.3%)", hoursChangeFromT0: "-141.56 (-60.45%)", casesChangeFromPrev: "-11 (-11.46%)", hoursChangeFromPrev: "-59.2 (-38.99%)"},
+            {store: "AMPM, תל אביב - נורדאו", network: "AMPM", week: "שבוע 6", dateRange: "2025-06-12 - 2025-06-17", period: "T6", cases: 185, hours: 198.65, avgTime: 5.37, medianTime: 5.09, topCategory: "קרקרים/אובלטים (55)", bottomCategory: "טיפוח שיער (2)", topDay: "2025-06-15 (65)", bottomDay: "2025-06-12 (6)", percentAboveHour: 100.00, percentAbove2Hours: 86.49, percentAbove5Hours: 59.46, avgHoursPerCamera: 19.86, casesChangeFromT0: "3 (1.65%)", hoursChangeFromT0: "-35.53 (-15.17%)", casesChangeFromPrev: "100 (117.65%)", hoursChangeFromPrev: "106.03 (114.48%)"},
+            {store: "AMPM, תל אביב - נורדאו", network: "AMPM", week: "שבוע 7", dateRange: "2025-06-19 - 2025-06-24", period: "T7", cases: 66, hours: 66.32, avgTime: 2.65, medianTime: 1, topCategory: "קרקרים/אובלטים (23.0)", bottomCategory: "מעדנים,גבינות לבנות (1.0)", topDay: "2025-06-23 (21.0)", bottomDay: "2025-06-24 (8.0)", percentAboveHour: 96.15, percentAbove2Hours: 38.46, percentAbove5Hours: 19.23, avgHoursPerCamera: 6.63, casesChangeFromT0: "-116 (-63.74%)", hoursChangeFromT0: "-167.86 (-71.68%)", casesChangeFromPrev: "-119 (-64.32%)", hoursChangeFromPrev: "-132.33 (-66.61%)"},
+            {store: "AMPM, תל אביב - נורדאו", network: "AMPM", week: "שבוע 8", dateRange: "2025-06-26 - 2025-07-01", period: "T8", cases: 57, hours: 58.85, avgTime: 2.45, medianTime: 1, topCategory: "קרקרים/אובלטים (18)", bottomCategory: "פסטה/קוסקוס/פתיתים (1)", topDay: "2025-06-26 (20)", bottomDay: "2025-06-30 (5)", percentAboveHour: 100.00, percentAbove2Hours: 29.17, percentAbove5Hours: 12.50, avgHoursPerCamera: 5.88, casesChangeFromT0: "-125 (-68.68%)", hoursChangeFromT0: "-175.33 (-74.87%)", casesChangeFromPrev: "-9 (-13.64%)", hoursChangeFromPrev: "-7.47 (-11.26%)"}
+        ];
+
+        // יצירת רשימת סניפים
+        const stores = [...new Set(data.map(d => d.store))];
+        const networks = [...new Set(data.map(d => d.network))];
+
+        // אתחול הגרפים
+        let charts = {
+            cases: null,
+            hours: null,
+            avgTime: null,
+            percent: null
+        };
+
+        // פונקציה לעדכון הנתונים
+        function updateDashboard() {
+            const selectedNetwork = document.getElementById('networkFilter').value;
+            const selectedBranch = document.getElementById('branchFilter').value;
+            const combineData = document.getElementById('combineData').checked;
+
+            // עדכון רשימת סניפים
+            updateBranchFilter(selectedNetwork);
+
+            // סינון נתונים
+            let filteredData = data;
+            if (selectedNetwork !== 'all') {
+                filteredData = filteredData.filter(d => d.network === selectedNetwork);
+            }
+            if (selectedBranch !== 'all') {
+                filteredData = filteredData.filter(d => d.store === selectedBranch);
+            }
+
+            // עדכון כרטיסי מדדים
+            updateMetrics(filteredData);
+
+            // עדכון גרפים
+            updateCharts(filteredData, combineData);
+
+            // עדכון טבלה
+            updateTable(filteredData);
+        }
+
+        // פונקציה לעדכון רשימת הסניפים
+        function updateBranchFilter(network) {
+            const branchFilter = document.getElementById('branchFilter');
+            const currentValue = branchFilter.value;
+            
+            branchFilter.innerHTML = '<option value="all">כל הסניפים</option>';
+            
+            let relevantStores = stores;
+            if (network !== 'all') {
+                relevantStores = stores.filter(store => 
+                    data.some(d => d.store === store && d.network === network)
+                );
+            }
+            
+            relevantStores.forEach(store => {
+                const option = document.createElement('option');
+                option.value = store;
+                option.textContent = store;
+                branchFilter.appendChild(option);
+            });
+            
+            // שמירה על הבחירה הקודמת אם אפשרי
+            if ([...branchFilter.options].some(opt => opt.value === currentValue)) {
+                branchFilter.value = currentValue;
+            }
+        }
+
+        // פונקציה לעדכון כרטיסי המדדים
+        function updateMetrics(filteredData) {
+            const metricsGrid = document.getElementById('metricsGrid');
+            
+            if (filteredData.length === 0) {
+                metricsGrid.innerHTML = '<div class="loading">אין נתונים להצגה</div>';
+                return;
+            }
+
+            // קבוצת נתונים לפי סניף
+            const storeGroups = {};
+            filteredData.forEach(d => {
+                if (!storeGroups[d.store]) {
+                    storeGroups[d.store] = [];
+                }
+                storeGroups[d.store].push(d);
+            });
+
+            // חישוב מדדים מצטברים
+            let totalT0Cases = 0, totalLastCases = 0;
+            let totalT0Hours = 0, totalLastHours = 0;
+            let avgTimeSum = 0, percentSum = 0;
+            let recordCount = 0;
+
+            // עבור כל סניף, מצא את T0 ואת הערך האחרון
+            Object.values(storeGroups).forEach(storeData => {
+                const sortedData = storeData.sort((a, b) => {
+                    const periodA = parseInt(a.period.replace('T', ''));
+                    const periodB = parseInt(b.period.replace('T', ''));
+                    return periodA - periodB;
+                });
+
+                if (sortedData.length > 0) {
+                    // T0 - הערך הראשון
+                    const t0Data = sortedData[0];
+                    totalT0Cases += t0Data.cases;
+                    totalT0Hours += t0Data.hours;
+
+                    // הערך האחרון
+                    const lastData = sortedData[sortedData.length - 1];
+                    totalLastCases += lastData.cases;
+                    totalLastHours += lastData.hours;
+                    avgTimeSum += lastData.avgTime;
+                    percentSum += lastData.percentAboveHour;
+                    recordCount++;
+                }
+            });
+
+            // חישוב שינויים
+            const casesChange = totalT0Cases > 0 ? ((totalLastCases - totalT0Cases) / totalT0Cases * 100).toFixed(1) : '0.0';
+            const hoursChange = totalT0Hours > 0 ? ((totalLastHours - totalT0Hours) / totalT0Hours * 100).toFixed(1) : '0.0';
+            
+            // חישוב ממוצעים רק לזמן תגובה ואחוזים
+            const avgTime = recordCount > 0 ? (avgTimeSum / recordCount).toFixed(2) : '0.00';
+            const avgPercent = recordCount > 0 ? (percentSum / recordCount).toFixed(1) : '0.0';
+
+            metricsGrid.innerHTML = `
+                <div class="metric-card">
+                    <h3>סך מקרי החוסר (סוף תקופה)</h3>
+                    <div class="metric-value">${totalLastCases.toLocaleString()}</div>
+                    <div class="metric-change ${parseFloat(casesChange) < 0 ? 'positive' : 'negative'}">
+                        ${parseFloat(casesChange) > 0 ? '+' : ''}${casesChange}% מ-T0 (${totalT0Cases})
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <h3>סך שעות החוסר (סוף תקופה)</h3>
+                    <div class="metric-value">${totalLastHours.toFixed(1)}</div>
+                    <div class="metric-change ${parseFloat(hoursChange) < 0 ? 'positive' : 'negative'}">
+                        ${parseFloat(hoursChange) > 0 ? '+' : ''}${hoursChange}% מ-T0 (${totalT0Hours.toFixed(1)})
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <h3>זמן תגובה ממוצע (סוף תקופה)</h3>
+                    <div class="metric-value">${avgTime}</div>
+                    <div class="metric-change">
+                        ממוצע על ${recordCount} סניפים
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <h3>אחוז מקרים מעל שעה (סוף תקופה)</h3>
+                    <div class="metric-value">${avgPercent}%</div>
+                    <div class="metric-change">
+                        ממוצע על ${recordCount} סניפים
+                    </div>
+                </div>
+            `;
+        }
+
+        // פונקציה לעדכון הגרפים
+        function updateCharts(filteredData, combineData) {
+            if (filteredData.length === 0) return;
+
+            // קבוצת נתונים לגרפים
+            const chartData = prepareChartData(filteredData, combineData);
+
+            // עדכון כל גרף
+            updateChart('casesChart', chartData.cases, 'מקרי חוסר', 'cases');
+            updateChart('hoursChart', chartData.hours, 'שעות חוסר', 'hours');
+            updateChart('avgTimeChart', chartData.avgTime, 'זמן תגובה ממוצע', 'avgTime');
+            updateChart('percentChart', chartData.percent, 'אחוז מקרים מעל שעה', 'percent');
+        }
+
+        // פונקציה להכנת נתונים לגרפים
+        function prepareChartData(filteredData, combineData) {
+            const result = {
+                cases: { labels: [], datasets: [] },
+                hours: { labels: [], datasets: [] },
+                avgTime: { labels: [], datasets: [] },
+                percent: { labels: [], datasets: [] }
+            };
+
+            if (combineData) {
+                // תצוגה משולבת - סכום לפי תקופה
+                const periodData = {};
+                filteredData.forEach(d => {
+                    if (!periodData[d.period]) {
+                        periodData[d.period] = {
+                            cases: 0,
+                            hours: 0,
+                            avgTime: [],
+                            percent: [],
+                            percent2Hours: [],
+                            percent5Hours: []
+                        };
+                    }
+                    periodData[d.period].cases += d.cases;
+                    periodData[d.period].hours += d.hours;
+                    periodData[d.period].avgTime.push(d.avgTime);
+                    periodData[d.period].percent.push(d.percentAboveHour);
+                    periodData[d.period].percent2Hours.push(d.percentAbove2Hours);
+                    periodData[d.period].percent5Hours.push(d.percentAbove5Hours);
+                });
+
+                const sortedPeriods = Object.keys(periodData).sort((a, b) => {
+                    const numA = parseInt(a.replace('T', ''));
+                    const numB = parseInt(b.replace('T', ''));
+                    return numA - numB;
+                });
+
+                result.cases.labels = sortedPeriods;
+                result.hours.labels = sortedPeriods;
+                result.avgTime.labels = sortedPeriods;
+                result.percent.labels = sortedPeriods;
+
+                result.cases.datasets = [{
+                    label: 'סך מקרי חוסר',
+                    data: sortedPeriods.map(p => periodData[p].cases),
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    tension: 0.1
+                }];
+
+                result.hours.datasets = [{
+                    label: 'סך שעות חוסר',
+                    data: sortedPeriods.map(p => periodData[p].hours),
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    tension: 0.1
+                }];
+
+                result.avgTime.datasets = [{
+                    label: 'זמן תגובה ממוצע',
+                    data: sortedPeriods.map(p => {
+                        const values = periodData[p].avgTime;
+                        return values.reduce((a, b) => a + b, 0) / values.length;
+                    }),
+                    borderColor: '#27ae60',
+                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                    tension: 0.1
+                }];
+
+                result.percent.datasets = [{
+                    label: 'אחוז מקרים מעל שעה',
+                    data: sortedPeriods.map(p => {
+                        const values = periodData[p].percent;
+                        return values.reduce((a, b) => a + b, 0) / values.length;
+                    }),
+                    borderColor: '#f39c12',
+                    backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                    tension: 0.1
+                }, {
+                    label: 'אחוז מקרים מעל שעתיים',
+                    data: sortedPeriods.map(p => {
+                        const values = periodData[p].percent2Hours || [];
+                        return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+                    }),
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    tension: 0.1
+                }, {
+                    label: 'אחוז מקרים מעל חמש שעות',
+                    data: sortedPeriods.map(p => {
+                        const values = periodData[p].percent5Hours || [];
+                        return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+                    }),
+                    borderColor: '#9b59b6',
+                    backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                    tension: 0.1
+                }];
+            } else {
+                // תצוגה נפרדת לפי סניף
+                const storeData = {};
+                filteredData.forEach(d => {
+                    if (!storeData[d.store]) {
+                        storeData[d.store] = [];
+                    }
+                    storeData[d.store].push(d);
+                });
+
+                const colors = [
+                    '#3498db', '#e74c3c', '#27ae60', '#f39c12', '#9b59b6',
+                    '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#d35400'
+                ];
+
+                let colorIndex = 0;
+                Object.entries(storeData).forEach(([store, data]) => {
+                    const sortedData = data.sort((a, b) => {
+                        const periodA = parseInt(a.period.replace('T', ''));
+                        const periodB = parseInt(b.period.replace('T', ''));
+                        return periodA - periodB;
+                    });
+
+                    const periods = sortedData.map(d => d.period);
+                    const color = colors[colorIndex % colors.length];
+
+                    if (result.cases.labels.length === 0) {
+                        result.cases.labels = periods;
+                        result.hours.labels = periods;
+                        result.avgTime.labels = periods;
+                        result.percent.labels = periods;
+                    }
+
+                    result.cases.datasets.push({
+                        label: store,
+                        data: sortedData.map(d => d.cases),
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        tension: 0.1
+                    });
+
+                    result.hours.datasets.push({
+                        label: store,
+                        data: sortedData.map(d => d.hours),
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        tension: 0.1
+                    });
+
+                    result.avgTime.datasets.push({
+                        label: store,
+                        data: sortedData.map(d => d.avgTime),
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        tension: 0.1
+                    });
+
+                    result.percent.datasets.push({
+                        label: store + ' - מעל שעה',
+                        data: sortedData.map(d => d.percentAboveHour),
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        tension: 0.1
+                    });
+
+                    result.percent.datasets.push({
+                        label: store + ' - מעל שעתיים',
+                        data: sortedData.map(d => d.percentAbove2Hours),
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderDash: [5, 5],
+                        tension: 0.1
+                    });
+
+                    result.percent.datasets.push({
+                        label: store + ' - מעל חמש שעות',
+                        data: sortedData.map(d => d.percentAbove5Hours),
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderDash: [10, 5],
+                        tension: 0.1
+                    });
+
+                    colorIndex++;
+                });
+            }
+
+            return result;
+        }
+
+        // פונקציה לעדכון גרף בודד
+        function updateChart(canvasId, data, title, type) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            if (charts[type]) {
+                charts[type].destroy();
+            }
+
+            charts[type] = new Chart(ctx, {
+                type: 'line',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: title,
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            }
+                        },
+                        legend: {
+                            display: data.datasets.length <= 5,
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // פונקציה לעדכון הטבלה
+        function updateTable(filteredData) {
+            const tableDiv = document.getElementById('dataTable');
+            
+            if (filteredData.length === 0) {
+                tableDiv.innerHTML = '<div class="loading">אין נתונים להצגה</div>';
+                return;
+            }
+
+            let tableHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>רשת וסניף</th>
+                            <th>שבועות</th>
+                            <th>תאריכים</th>
+                            <th>תקופת זמן</th>
+                            <th>חוסרים</th>
+                            <th>משך זמן</th>
+                            <th>זמן ממוצע לאירוע</th>
+                            <th>זמן חציוני לאירוע</th>
+                            <th>הקטגוריה עם הכי הרבה חוסרים</th>
+                            <th>הקטגוריה עם הכי מעט חוסרים</th>
+                            <th>היום עם הכי הרבה חוסרים</th>
+                            <th>היום עם הכי מעט חוסרים</th>
+                            <th>אחוז מקרים מעל שעה</th>
+                            <th>אחוז מקרים מעל שעתיים</th>
+                            <th>אחוז מקרים מעל 5 שעות</th>
+                            <th>ממוצע שעות חוסר למצלמה</th>
+                            <th>Δ סך מקרי חוסר (מ-T0)</th>
+                            <th>Δ סך שעות חוסר (מ-T0)</th>
+                            <th>Δ סך מקרי חוסר (מהשבוע הקודם)</th>
+                            <th>Δ משך זמן (מהשבוע הקודם)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            filteredData.forEach(row => {
+                tableHTML += `
+                    <tr>
+                        <td>${row.store}</td>
+                        <td>${row.week}</td>
+                        <td>${row.dateRange}</td>
+                        <td>${row.period}</td>
+                        <td>${row.cases}</td>
+                        <td>${row.hours.toFixed(1)}</td>
+                        <td>${row.avgTime.toFixed(2)}</td>
+                        <td>${row.medianTime.toFixed(2)}</td>
+                        <td>${row.topCategory}</td>
+                        <td>${row.bottomCategory}</td>
+                        <td>${row.topDay}</td>
+                        <td>${row.bottomDay}</td>
+                        <td>${row.percentAboveHour.toFixed(1)}%</td>
+                        <td>${row.percentAbove2Hours ? row.percentAbove2Hours.toFixed(1) + '%' : 'N/A'}</td>
+                        <td>${row.percentAbove5Hours ? row.percentAbove5Hours.toFixed(1) + '%' : 'N/A'}</td>
+                        <td>${row.avgHoursPerCamera ? row.avgHoursPerCamera.toFixed(2) : 'N/A'}</td>
+                        <td>${row.casesChangeFromT0}</td>
+                        <td>${row.hoursChangeFromT0}</td>
+                        <td>${row.casesChangeFromPrev}</td>
+                        <td>${row.hoursChangeFromPrev}</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += '</tbody></table>';
+            tableDiv.innerHTML = tableHTML;
+        }
+
+        // אירועי שינוי בפילטרים
+        document.getElementById('networkFilter').addEventListener('change', updateDashboard);
+        document.getElementById('branchFilter').addEventListener('change', updateDashboard);
+        document.getElementById('combineData').addEventListener('change', updateDashboard);
+
+        // אתחול הדשבורד
+        updateDashboard();
+    </script>
+</body>
+</html>
